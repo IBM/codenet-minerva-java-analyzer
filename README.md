@@ -4,6 +4,11 @@ Project Minerva for Modernization is a set of libraries to analyze Java applicat
 # Build (Maven Based)
 mvn install
 
+# Build (Docker Based)
+docker build -t minerva-analyzer .
+
+docker run --rm -it -v [target dir]:/var/install minerva-analyzer
+
 # Usage
 
 java -classpath minerva-analyzer-1.0.jar com.ibm.minerva.analyzer.Analyzer [archive path] [output dir] {optional package exclusion list; comma separated}
