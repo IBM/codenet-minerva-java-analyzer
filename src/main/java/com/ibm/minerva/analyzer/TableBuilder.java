@@ -46,40 +46,45 @@ import javassist.bytecode.SignatureAttribute;
 import javassist.bytecode.SignatureAttribute.ObjectType;
 
 public final class TableBuilder implements ApplicationProcessor {
-    
+
     private static final Logger logger = LoggingUtil.getLogger(TableBuilder.class);
-    
+
     private static final String SYM_TABLE_FILE_NAME = "symTable.json";
     private static final String REF_TABLE_FILE_NAME = "refTable.json";
     private static final String AGENT_CONFIG_FILE_NAME = "instrumenter-config.json";
-    
+    private static final String CALL_GRAPH_FILE_NAME = "callGraph.json";
+
     private final File tableDir;
-    
+
     private final JsonObject symTable;
     private final JsonObject refTable;
-    
+
     private final Set<String> fqcns = new LinkedHashSet<>();
     private final Set<String> duplicateClasses = new LinkedHashSet<>();
     private final Set<String> skippedClasses = new LinkedHashSet<>();
     private final Map<String,Set<String>> duplicateClassMap = new LinkedHashMap<>();
-    
+
+    private CallGraphBuilder callGraphBuilder;
     private Set<String> packages;
     private boolean isPackageIncludeList;
     private boolean useSystemOut;
-    
+
     public TableBuilder(File tableDir) {
         this.tableDir = tableDir;
         this.symTable = createSymTable();
         this.refTable = createRefTable();
     }
-    
-    public void process(ClassProcessor cp) {
+
+    public void process(ClassProcessor cp, byte[] bytes) {
         final String fqcn = cp.toFQCN();
         if (isIncludedPackage(cp) && cp.isStandardNamedClass()) {
             if (!fqcns.contains(fqcn)) {
                 logger.info(() -> formatMessage("AnalyzingClass", cp.getCtClass().getName()));
                 addToRefTable(cp, addToSymTable(cp));
                 fqcns.add(fqcn);
+                if (callGraphBuilder != null) {
+                    callGraphBuilder.addToScope(cp, bytes);
+                }
             }
             // This reduces reporting of duplicate classes if more than 
             // two instances of the same class exist in the archive.
@@ -95,7 +100,7 @@ public final class TableBuilder implements ApplicationProcessor {
             skippedClasses.add(fqcn);
         }
     }
-    
+
     private boolean isIncludedPackage(ClassProcessor cp) {
         // Check if the class is a member of an include or exclude list if one was specified.
         if (packages != null) {
@@ -112,16 +117,20 @@ public final class TableBuilder implements ApplicationProcessor {
         }
         return true;
     }
-    
+
+    public void setCallGraphBuilder(CallGraphBuilder callGraphBuilder) {
+        this.callGraphBuilder = callGraphBuilder;
+    }
+
     public void setPackageRestrictions(Set<String> packages, boolean isPackageIncludeList) {
         this.packages = packages;
         this.isPackageIncludeList = isPackageIncludeList;
     }
-    
+
     public void setAgentOutputStream(boolean useSystemOut) {
         this.useSystemOut = useSystemOut;
     }
-    
+
     public void write() throws IOException {
         resolveDuplicateClassMappings();
         if (tableDir.mkdirs()) {
@@ -141,15 +150,31 @@ public final class TableBuilder implements ApplicationProcessor {
         try (Writer agentConfigWriter = createWriter(AGENT_CONFIG_FILE_NAME)) {
             gson.toJson(createAgentConfiguration(), agentConfigWriter);
         }
+        // Write callGraph.json.
+        writeCallGraph(CALL_GRAPH_FILE_NAME);
     }
-    
+
+    public void clean() {
+        if (callGraphBuilder != null) {
+            callGraphBuilder.clean();
+        }
+    }
+
     private Writer createWriter(String file) throws IOException {
         File f = new File(tableDir, file);
         logger.info(() -> formatMessage("WritingFile", f));
         OutputStream os = new FileOutputStream(f);
         return new OutputStreamWriter(os, "UTF-8");
     }
-    
+
+    private void writeCallGraph(String file) throws IOException {
+        if (callGraphBuilder != null) {
+            File f = new File(tableDir, file);
+            logger.info(() -> formatMessage("WritingFile", f));
+            callGraphBuilder.write(f);
+        }
+    }
+
     private String addToSymTable(ClassProcessor cp) {
         // Compute the symbol table key for the class.
         String symTableKey = cp.getSimpleName().replace("$", "::");
@@ -173,13 +198,13 @@ public final class TableBuilder implements ApplicationProcessor {
         symTable.add(symTableKey, o);
         return symTableKey;
     }
-    
+
     private void addToRefTable(ClassProcessor cp, String symTableKey) {
         final JsonObject files = refTable.get("Files").getAsJsonObject();
         final String sourcePath = cp.getSourcePath();
         final String fqcn = cp.toFQCN();
         final String localName = cp.getLocalName();
-        
+
         JsonElement e = files.get(sourcePath);
         JsonObject fileObject = (e != null) ? e.getAsJsonObject() : null;
         if (fileObject == null) {
@@ -197,7 +222,7 @@ public final class TableBuilder implements ApplicationProcessor {
             localNameValue = localElement.getAsString() + "," + symTableKey;
         }
         fileObject.addProperty(localName, localNameValue);
-        
+
         final JsonObject fqcns = refTable.get("FQCN").getAsJsonObject();
         e = fqcns.get(fqcn);
         JsonArray fqcnArray = (e != null) ? e.getAsJsonArray() : null;
@@ -206,7 +231,7 @@ public final class TableBuilder implements ApplicationProcessor {
             fqcns.add(fqcn, fqcnArray);
         }
         fqcnArray.add(symTableKey);
-        
+
         final JsonObject jParser = refTable.get("Jparser").getAsJsonObject();
         e = jParser.get(sourcePath);
         fileObject = (e != null) ? e.getAsJsonObject() : null;
@@ -216,11 +241,11 @@ public final class TableBuilder implements ApplicationProcessor {
         }
         fileObject.addProperty(cp.getClassName(), symTableKey);
     }
-    
+
     private JsonObject createSymTable() {
         return new JsonObject();
     }
-    
+
     private JsonObject createSymTableClassObject(ClassProcessor cp) {
         final JsonObject o = new JsonObject();
         o.add("classVar", createSymTableVariablesObject(cp));
@@ -237,7 +262,7 @@ public final class TableBuilder implements ApplicationProcessor {
         o.add("funcSig", createSymTableFuncSigObject(o));
         return o;
     }
-    
+
     private String createSymTableClassObjectHeader(ClassProcessor cp, JsonArray modifiers) {
         final StringBuilder sb = new StringBuilder();
         if (cp.isEntityClass()) {
@@ -275,7 +300,7 @@ public final class TableBuilder implements ApplicationProcessor {
         sb.append(" {");
         return sb.toString();
     }
-    
+
     private JsonObject createSymTableVariablesObject(ClassProcessor cp) {
         final JsonObject o = new JsonObject();
         cp.getFields().forEach(x -> {
@@ -283,7 +308,7 @@ public final class TableBuilder implements ApplicationProcessor {
         });
         return o;
     }
-    
+
     private JsonObject createSymTableVariableObject(FieldProcessor fp) {
         final JsonObject o = new JsonObject();
         final SignatureAttribute.Type type = fp.getType();
@@ -300,7 +325,7 @@ public final class TableBuilder implements ApplicationProcessor {
         o.addProperty("RawStr", createSymTableVariableObjectHeader(fp, typeName, modifiers));
         return o;
     }
-    
+
     private String createSymTableVariableObjectHeader(FieldProcessor fp, String typeName, JsonArray modifiers) {
         final StringBuilder sb = new StringBuilder();
         modifiers.forEach(x -> {
@@ -313,7 +338,7 @@ public final class TableBuilder implements ApplicationProcessor {
         sb.append(";");
         return sb.toString();
     }
-    
+
     private JsonObject createSymTableMethodsObject(ClassProcessor cp) {
         final JsonObject o = new JsonObject();
         final AtomicInteger count = new AtomicInteger(1);
@@ -327,7 +352,7 @@ public final class TableBuilder implements ApplicationProcessor {
         });
         return o;
     }
-    
+
     private JsonObject createSymTableMethodObject(MethodProcessor mp) {
         final JsonObject o = new JsonObject();
         final SignatureAttribute.Type retType = mp.getReturnType();
@@ -357,7 +382,7 @@ public final class TableBuilder implements ApplicationProcessor {
         o.addProperty("signature", methodSignature);
         return o;
     }
-    
+
     private JsonArray createSymTableMethodThrowsArray(MethodProcessor mp) {
         final ObjectType[] ot = mp.getExceptionTypes();
         if (ot != null && ot.length > 0) {
@@ -369,7 +394,7 @@ public final class TableBuilder implements ApplicationProcessor {
         }
         return null;
     }
-    
+
     private JsonObject createSymTableMethodArgsObject(MethodProcessor mp) {
         final JsonObject o = new JsonObject();
         final AtomicInteger i = new AtomicInteger(0);
@@ -388,7 +413,7 @@ public final class TableBuilder implements ApplicationProcessor {
         }
         return o;
     }
-    
+
     private JsonObject createSymTableSuperClassObject(ClassProcessor cp) {
         JsonObject o = null;
         final String[] interfaces = cp.getInterfaces();
@@ -420,7 +445,7 @@ public final class TableBuilder implements ApplicationProcessor {
         }
         return o;
     }
-    
+
     private JsonObject createTypeAST(String typeName) {
         final JsonObject typeAST = new JsonObject();
         typeAST.addProperty("name", typeName);
@@ -429,19 +454,19 @@ public final class TableBuilder implements ApplicationProcessor {
         typeAST.add("sub_type", null);
         return typeAST;
     }
-    
+
     private JsonArray createSymTableClassModifierArray(ClassProcessor cp) {
         return createModifierArray(cp.getModifiers());
     }
-    
+
     private JsonArray createSymTableFieldModifierArray(FieldProcessor fp) {
         return createModifierArray(fp.getModifiers());
     }
-    
+
     private JsonArray createSymTableMethodModifierArray(MethodProcessor mp) {
         return createModifierArray(mp.getModifiers());
     }
-    
+
     private JsonArray createModifierArray(int modifiers) {
         final JsonArray array = new JsonArray();
         if (Modifier.isAbstract(modifiers)) {
@@ -491,7 +516,7 @@ public final class TableBuilder implements ApplicationProcessor {
         }
         return array;
     }
-    
+
     private JsonObject createSymTableFuncSigObject(JsonObject classObject) {
         final JsonObject o = new JsonObject();
         final JsonObject methodsObject = classObject.get("funcL").getAsJsonObject();
@@ -502,7 +527,7 @@ public final class TableBuilder implements ApplicationProcessor {
         });
         return o;
     }
-    
+
     private JsonObject createRefTable() {
         final JsonObject o = new JsonObject();
         o.add("Files", new JsonObject());
@@ -513,7 +538,7 @@ public final class TableBuilder implements ApplicationProcessor {
         o.add("Jparser", new JsonObject());
         return o;
     }
-    
+
     private JsonObject createAgentConfiguration() {
         final JsonObject o = new JsonObject();
         o.add("filter", createTypedFactoryConfiguration("sym-ref-tables", "1.0", "."));
@@ -521,7 +546,7 @@ public final class TableBuilder implements ApplicationProcessor {
         o.addProperty("logging", "info");
         return o;
     }
-    
+
     private JsonObject createTypedFactoryConfiguration(String type, String version, String config) {
         final JsonObject o = new JsonObject();
         o.addProperty("type", type);
@@ -529,7 +554,7 @@ public final class TableBuilder implements ApplicationProcessor {
         o.addProperty("config", config);
         return o;
     }
-    
+
     private Set<String> computeOverloadedMethodSet(ClassProcessor cp) {
         final Set<String> methods = new HashSet<>();
         final Set<String> overloadedMethods = new HashSet<>();
@@ -544,11 +569,11 @@ public final class TableBuilder implements ApplicationProcessor {
         });
         return overloadedMethods;
     }
-    
+
     private String generateOverloadedName(String baseName, AtomicInteger count) {
         return baseName + " [overloaded_#00" + count.getAndIncrement() + "]";
     }
-    
+
     private void resolveDuplicateClassMappings() {
         if (!duplicateClassMap.isEmpty()) {
             // Fill in the Dup_Class object with file mappings.

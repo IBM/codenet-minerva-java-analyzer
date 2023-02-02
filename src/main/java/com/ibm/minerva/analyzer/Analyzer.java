@@ -29,17 +29,17 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class Analyzer {
-    
+
     private static final Logger logger = LoggingUtil.getLogger(Analyzer.class);
-    
+
     private final File archive;
     private final File outputDir;
     private final ApplicationProcessor ap;
-    
+
     private Set<String> packages;
     private boolean isPackageIncludeList;
     private boolean useSystemOut;
-    
+
     public Analyzer(File archive, File outputDir) {
         if (archive == null || outputDir == null) {
             throw new NullPointerException();
@@ -48,20 +48,20 @@ public class Analyzer {
         this.outputDir = outputDir;
         this.ap = new TableBuilder(outputDir);
     }
-    
+
     public Analyzer setPackageRestrictions(Set<String> packages, boolean isPackageIncludeList) {
         this.packages = packages;
         this.isPackageIncludeList = isPackageIncludeList;
         ap.setPackageRestrictions(packages, isPackageIncludeList);
         return this;
     }
-    
+
     public Analyzer setAgentOutputStream(boolean useSystemOut) {
         this.useSystemOut = useSystemOut;
         ap.setAgentOutputStream(useSystemOut);
         return this;
     }
-    
+
     public void run() throws IOException {
         logger.info(() -> formatMessage("StartingAnalyzer"));
         logger.info(() -> formatMessage("AnalyzingArchive", archive));
@@ -72,15 +72,17 @@ public class Analyzer {
         }
         logger.config(() -> formatMessage("AgentOutputStream", 
                 useSystemOut ? "System.out" : "System.err"));
+        ap.setCallGraphBuilder(new CallGraphBuilder());
         final ArchiveProcessor archiveProcessor = new ArchiveProcessor(ap);
         archiveProcessor.processBinaryFile(archive);
         ap.write();
+        ap.clean();
     }
-    
+
     public static void setLoggingLevel(Level level) {
         LoggingUtil.setLoggingLevel(level);
     }
-    
+
     public static void main(String[] args) {
         if (args.length > 1) {
             final Analyzer analyzer = new Analyzer(new File(args[0]), new File(args[1]));

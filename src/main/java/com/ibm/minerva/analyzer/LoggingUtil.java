@@ -32,11 +32,11 @@ import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
 public final class LoggingUtil {
-    
+
     private static volatile Level LOG_LEVEL = Level.INFO;
     private static final Set<Logger> LOGGERS = Collections.synchronizedSet(new HashSet<>());
     private static final DateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-    
+
     private LoggingUtil() {}
 
     public static Logger getLogger(Class<?> cls) {
@@ -80,18 +80,18 @@ public final class LoggingUtil {
         LOGGERS.add(logger);
         return logger;
     }
-    
+
     private static boolean isVerboseLevel(Level level) {
         return level == Level.FINEST || level == Level.FINER || level == Level.FINE;
     }
-    
+
     static void setLoggingLevel(Level level) {
         LOG_LEVEL = level;
         LOGGERS.forEach(x -> {
             x.setLevel(level);
         });
     }
-    
+
     static Level getLoggingLevel() {
         return LOG_LEVEL;
     }

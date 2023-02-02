@@ -22,10 +22,12 @@ import java.io.IOException;
 import java.util.Set;
 
 public interface ApplicationProcessor {
-    
-    public void process(ClassProcessor cp);
+
+    public void process(ClassProcessor cp, byte[] bytes);
+    public void setCallGraphBuilder(CallGraphBuilder cgb);
     public void setPackageRestrictions(Set<String> packages, boolean isPackageIncludeList);
     public void setAgentOutputStream(boolean useSystemOut);
     public void write() throws IOException;
+    public void clean();
 
 }

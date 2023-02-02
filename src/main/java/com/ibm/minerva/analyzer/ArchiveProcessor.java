@@ -42,15 +42,15 @@ import javassist.scopedpool.ScopedClassPoolFactoryImpl;
 import javassist.scopedpool.ScopedClassPoolRepositoryImpl;
 
 public final class ArchiveProcessor {
-    
+
     private static final Logger logger = LoggingUtil.getLogger(ArchiveProcessor.class);
-    
+
     private final ApplicationProcessor ap;
-    
+
     public ArchiveProcessor(ApplicationProcessor ap) {
         this.ap = ap;
     }
-    
+
     public void processBinaryFile(File thisBinaryFile) throws IOException {
         if (thisBinaryFile.length() == 0) {
             // Warning message for an empty file.
@@ -60,25 +60,25 @@ public final class ArchiveProcessor {
         final String name = thisBinaryFile.getName().toLowerCase(Locale.ENGLISH);
         final BinaryType bt = BinaryType.getBinaryType(name);
         switch (bt) {
-            case JAR:
-            case WAR:
-            case EAR:
-            case RAR:
-            case EBA:
-            case CBA:
-                processJarFile(thisBinaryFile, bt);
-                break;
-            case ZIP:
-                processZipFile(thisBinaryFile);
-                break;
-            case CLASS:
-                processClassFile(thisBinaryFile);
-                break;
-            case UNKNOWN:
-                break;
+        case JAR:
+        case WAR:
+        case EAR:
+        case RAR:
+        case EBA:
+        case CBA:
+            processJarFile(thisBinaryFile, bt);
+            break;
+        case ZIP:
+            processZipFile(thisBinaryFile);
+            break;
+        case CLASS:
+            processClassFile(thisBinaryFile);
+            break;
+        case UNKNOWN:
+            break;
         }
     }
-    
+
     private void processJarFile(File thisBinaryFile, BinaryType jarType) throws IOException {
         // Use the JarFile constructor that takes a boolean to turn off signature verification. Otherwise, jar files
         // that contain invalid manifest signatures cannot be scanned.
@@ -102,7 +102,7 @@ public final class ArchiveProcessor {
             }
         }
     }
-    
+
     private void processJarEntry(JarFile fileToProcess, JarEntry entry, BinaryType jarType) {
         InputStream is = null;
         final String entryName = entry.getName();
@@ -115,22 +115,22 @@ public final class ArchiveProcessor {
                         logger.finest(() -> formatMessage("ArchiveReadFile", entryName));
                         is = fileToProcess.getInputStream(entry);
                         switch (bt) {
-                            case CLASS:
-                                processClassFile(is);
-                                break;
-                            case WAR:
-                                processWarFile(is);
-                                break;
-                            case JAR:
-                                processJarFile(is);
-                                break;
-                            case CBA:
-                                processCbaFile(is);
-                                break;
-                            case RAR:
-                                processRarFile(is);
-                                break;
-                            default:
+                        case CLASS:
+                            processClassFile(is);
+                            break;
+                        case WAR:
+                            processWarFile(is);
+                            break;
+                        case JAR:
+                            processJarFile(is);
+                            break;
+                        case CBA:
+                            processCbaFile(is);
+                            break;
+                        case RAR:
+                            processRarFile(is);
+                            break;
+                        default:
                         }
                     }
                 }
@@ -140,7 +140,7 @@ public final class ArchiveProcessor {
             }
         }
     }
-    
+
     private void processJarFile(InputStream is) throws IOException {
         InputStream jeis = null;
         try {
@@ -159,13 +159,13 @@ public final class ArchiveProcessor {
                             if (!isNull(jeis)) {
                                 logger.finest(() -> formatMessage("ArchiveReadFile", entryName));
                                 switch (bt) {
-                                    case JAR:
-                                        processJarFile(jeis);
-                                        break;
-                                    case CLASS:
-                                        processClassFile(jeis);
-                                        break;
-                                    default:
+                                case JAR:
+                                    processJarFile(jeis);
+                                    break;
+                                case CLASS:
+                                    processClassFile(jeis);
+                                    break;
+                                default:
                                 }
                             }
                         }
@@ -189,7 +189,7 @@ public final class ArchiveProcessor {
             }
         }
     }
-    
+
     private void processZipFile(File thisBinaryFile) throws IOException {
         final ZipFile fileToProcess = new ZipFile(thisBinaryFile.getAbsoluteFile());
         try {
@@ -211,7 +211,7 @@ public final class ArchiveProcessor {
             }
         }
     }
-    
+
     private void processZipEntry(ZipFile fileToProcess, ZipEntry entry) {
         InputStream is = null;
         final String entryName = entry.getName();
@@ -224,25 +224,25 @@ public final class ArchiveProcessor {
                         logger.finest(() -> formatMessage("ArchiveReadFile", entryName));
                         is = fileToProcess.getInputStream(entry);
                         switch (bt) {
-                            case CLASS:
-                                processClassFile(is);
-                                break;
-                            case WAR:
-                                processWarFile(is);
-                                break;
-                            case JAR:
-                                processJarFile(is);
-                                break;
-                            case EAR:
-                                processEarFile(is);
-                                break;
-                            case EBA:
-                                processEbaFile(is);
-                                break;
-                            case RAR:
-                                processRarFile(is);
-                                break;
-                            default:
+                        case CLASS:
+                            processClassFile(is);
+                            break;
+                        case WAR:
+                            processWarFile(is);
+                            break;
+                        case JAR:
+                            processJarFile(is);
+                            break;
+                        case EAR:
+                            processEarFile(is);
+                            break;
+                        case EBA:
+                            processEbaFile(is);
+                            break;
+                        case RAR:
+                            processRarFile(is);
+                            break;
+                        default:
                         }
                     }
                 }
@@ -252,7 +252,7 @@ public final class ArchiveProcessor {
             }
         }
     }
-    
+
     private void processWarFile(InputStream is) throws IOException {
         InputStream jeis = null;
         try {
@@ -271,13 +271,13 @@ public final class ArchiveProcessor {
                             if (!isNull(jeis)) {
                                 logger.finest(() -> formatMessage("ArchiveReadFile", entryName));
                                 switch (bt) {
-                                    case CLASS:
-                                        processClassFile(jeis);
-                                        break;
-                                    case JAR:
-                                        processJarFile(jeis);
-                                        break;
-                                    default:
+                                case CLASS:
+                                    processClassFile(jeis);
+                                    break;
+                                case JAR:
+                                    processJarFile(jeis);
+                                    break;
+                                default:
                                 }
                             }
                         }
@@ -320,16 +320,16 @@ public final class ArchiveProcessor {
                             if (!isNull(jeis)) {
                                 logger.finest(() -> formatMessage("ArchiveReadFile", entryName));
                                 switch (bt) {
-                                    case WAR:
-                                        processWarFile(jeis);
-                                        break;
-                                    case JAR:
-                                        processJarFile(jeis);
-                                        break;
-                                    case CLASS:
-                                        processClassFile(jeis);
-                                        break;
-                                    default:
+                                case WAR:
+                                    processWarFile(jeis);
+                                    break;
+                                case JAR:
+                                    processJarFile(jeis);
+                                    break;
+                                case CLASS:
+                                    processClassFile(jeis);
+                                    break;
+                                default:
                                 }
                             }
                         }
@@ -353,7 +353,7 @@ public final class ArchiveProcessor {
             }
         }
     }
-    
+
     private void processCbaFile(InputStream is) throws IOException {
         InputStream jeis = null;
         try {
@@ -372,10 +372,10 @@ public final class ArchiveProcessor {
                             if (!isNull(jeis)) {
                                 logger.finest(() -> formatMessage("ArchiveReadFile", entryName));
                                 switch (bt) {
-                                    case JAR:
-                                        processJarFile(jeis);
-                                        break;
-                                    default:
+                                case JAR:
+                                    processJarFile(jeis);
+                                    break;
+                                default:
                                 }
                             }
                         }
@@ -399,7 +399,7 @@ public final class ArchiveProcessor {
             }
         }
     }
-    
+
     private void processEbaFile(InputStream is) throws IOException {
         InputStream jeis = null;
         try {
@@ -418,16 +418,16 @@ public final class ArchiveProcessor {
                             if (!isNull(jeis)) {
                                 logger.finest(() -> formatMessage("ArchiveReadFile", entryName));
                                 switch (bt) {
-                                    case WAR:
-                                        processWarFile(jeis);
-                                        break;
-                                    case CBA:
-                                        processCbaFile(jeis);
-                                        break;
-                                    case JAR:
-                                        processJarFile(jeis);
-                                        break;
-                                    default:
+                                case WAR:
+                                    processWarFile(jeis);
+                                    break;
+                                case CBA:
+                                    processCbaFile(jeis);
+                                    break;
+                                case JAR:
+                                    processJarFile(jeis);
+                                    break;
+                                default:
                                 }
                             }
                         }
@@ -451,7 +451,7 @@ public final class ArchiveProcessor {
             }
         }
     }
-    
+
     private void processRarFile(InputStream is) throws IOException {
         InputStream jeis = null;
         try {
@@ -470,13 +470,13 @@ public final class ArchiveProcessor {
                             if (!isNull(jeis)) {
                                 logger.finest(() -> formatMessage("ArchiveReadFile", entryName));
                                 switch (bt) {
-                                    case CLASS:
-                                        processClassFile(jeis);
-                                        break;
-                                    case JAR:
-                                        processJarFile(jeis);
-                                        break;
-                                    default:
+                                case CLASS:
+                                    processClassFile(jeis);
+                                    break;
+                                case JAR:
+                                    processJarFile(jeis);
+                                    break;
+                                default:
                                 }
                             }
                         }
@@ -500,7 +500,7 @@ public final class ArchiveProcessor {
             }
         }
     }
-    
+
     private void processClassFile(File fileToProcess) {
         FileInputStream fis = null;
         try {
@@ -521,21 +521,22 @@ public final class ArchiveProcessor {
             }
         }
     }
-    
+
     private void processClassFile(InputStream fileToProcessStream) throws IOException {
-        final CtClass ctClass = toCtClass(fileToProcessStream);
+        final byte[] bytes = toByteArray(fileToProcessStream);
+        final CtClass ctClass = toCtClass(bytes);
         final ClassProcessor cp = new ClassProcessor(ctClass);
-        ap.process(cp);
+        ap.process(cp, bytes);
     }
-    
+
     private boolean isEmpty(ZipEntry entry) {
         return entry.getSize() == 0;
     }
-    
+
     private boolean isNull(InputStream is) {
         return is == null;
     }
-    
+
     private InputStream readInputStream(InputStream is) throws IOException {
         final byte[] bytes = toByteArray(is);
         if (bytes != null) {
@@ -543,15 +544,14 @@ public final class ArchiveProcessor {
         }
         return null;
     }
-    
-    private CtClass toCtClass(InputStream is) throws IOException {
-        byte[] bytes = toByteArray(is);
+
+    private CtClass toCtClass(byte[] bytes) throws IOException {
         Desc.useContextClassLoader = true;
         final ClassPool classPool = new ScopedClassPoolFactoryImpl().create(Analyzer.class.getClassLoader(),
                 ClassPool.getDefault(), ScopedClassPoolRepositoryImpl.getInstance());
         return classPool.makeClass(new ByteArrayInputStream(bytes));
     }
-    
+
     private byte[] toByteArray(InputStream is) throws IOException {
         byte[] contents = null;
         final ByteArrayOutputStream baos = new ByteArrayOutputStream();
