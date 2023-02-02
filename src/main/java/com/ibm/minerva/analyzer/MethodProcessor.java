@@ -24,23 +24,23 @@ import javassist.bytecode.SignatureAttribute.MethodSignature;
 import javassist.bytecode.SignatureAttribute.ObjectType;
 
 public class MethodProcessor {
-    
+
     private final ClassProcessor classProcessor;
     private final CtBehavior ctBehavior;
-    
+
     public MethodProcessor(ClassProcessor classProcessor, CtBehavior ctBehavior) {
         this.classProcessor = classProcessor;
         this.ctBehavior = ctBehavior;
     }
-    
+
     public ClassProcessor getClassProcessor() {
         return classProcessor;
     }
-    
+
     public CtBehavior getCtBehavior() {
         return ctBehavior;
     }
-    
+
     public String getMethodName() {
         final String methodName = ctBehavior.getName();
         // Handle the special case of a constructor of an inner class.
@@ -56,11 +56,11 @@ public class MethodProcessor {
         }
         return methodName;
     }
-    
+
     public int getModifiers() {
         return ctBehavior.getModifiers();
     }
-    
+
     public SignatureAttribute.Type[] getParameterTypes() {
         final MethodSignature ms = getMethodSignatureObject();
         if (ms != null) {
@@ -85,7 +85,7 @@ public class MethodProcessor {
         }
         return null;
     }
-    
+
     public SignatureAttribute.Type getReturnType() {
         final MethodSignature ms = getMethodSignatureObject();
         if (ms != null) {
@@ -93,7 +93,7 @@ public class MethodProcessor {
         }
         return null;
     }
-    
+
     public ObjectType[] getExceptionTypes() {
         final MethodSignature ms = getMethodSignatureObject();
         if (ms != null) {
@@ -101,7 +101,7 @@ public class MethodProcessor {
         }
         return null;
     }
-    
+
     public String getMethodSignature() {
         final StringBuilder sb = new StringBuilder();
         sb.append(getMethodName());
@@ -120,7 +120,7 @@ public class MethodProcessor {
         sb.append(')');
         return sb.toString();
     }
-    
+
     private MethodSignature getMethodSignatureObject() {
         final String sig = ctBehavior.getSignature();
         if (sig != null) {
@@ -133,7 +133,7 @@ public class MethodProcessor {
         }
         return null;
     }
-    
+
     private static String toClassName(String jvmType) {
         return jvmType.replace('$', '.');
     }

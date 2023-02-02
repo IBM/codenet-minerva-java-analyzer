@@ -31,34 +31,34 @@ import javassist.CtField;
 import javassist.Modifier;
 
 public final class ClassProcessor {
-    
+
     private static final String MODULE_INFO = "module-info";
     private static final String PACKAGE_INFO = "package-info";
-    
+
     private final CtClass ctClass;
     private volatile List<FieldProcessor> fieldProcessors;
     private volatile List<MethodProcessor> methodProcessors;
-    
+
     public ClassProcessor(CtClass ctClass) {
         this.ctClass = ctClass;
     }
-    
+
     public CtClass getCtClass() {
         return ctClass;
     }
-    
+
     public boolean isNestedClass() {
         return ctClass.getName().indexOf('$') != -1;
     }
-    
+
     public boolean isStaticClass() {
         return Modifier.isStatic(ctClass.getModifiers());
     }
-    
+
     public boolean isEntityClass() {
         return ctClass.hasAnnotation("javax.persistence.Entity");
     }
-    
+
     public Set<String> getServerTypeAnnotations() {
         final Set<String> annotations = new LinkedHashSet<>();
         if (ctClass.hasAnnotation("javax.websocket.server.ServerEndpoint")) {
@@ -78,7 +78,7 @@ public final class ClassProcessor {
         }
         return annotations;
     }
-    
+
     public List<FieldProcessor> getFields() {
         if (fieldProcessors == null) {
             final List<FieldProcessor> fps = new ArrayList<>();
@@ -94,7 +94,7 @@ public final class ClassProcessor {
         }
         return fieldProcessors;
     }
-    
+
     public List<MethodProcessor> getMethods() {
         if (methodProcessors == null) {
             final List<MethodProcessor> mps = new ArrayList<>();
@@ -111,15 +111,15 @@ public final class ClassProcessor {
         }
         return methodProcessors;
     }
-    
+
     public String getClassName() {
         return ctClass.getName().replace('$', '.');
     }
-    
+
     public String toFQCN() {
         return getCtClass().getName().replace("$", ".$");
     }
-    
+
     public String getSuperClassName() {
         final String superClass = ctClass.getClassFile().getSuperclass();
         if (superClass != null) {
@@ -127,7 +127,7 @@ public final class ClassProcessor {
         }
         return null;
     }
-    
+
     public String[] getInterfaces() {
         // Javassist returns a read-only array here. We need to
         // copy the values into a new array instead of mutating it in place.
@@ -145,19 +145,19 @@ public final class ClassProcessor {
         }
         return interfaces;
     }
-    
+
     public int getModifiers() {
         return ctClass.getModifiers();
     }
-    
+
     public String getPackageName() {
         return ctClass.getPackageName();
     }
-    
+
     public String getSimpleName() {
         return ctClass.getSimpleName();
     }
-    
+
     public String getLocalName() {
         final String simpleName = getSimpleName();
         final int index = simpleName.lastIndexOf('$');
@@ -166,7 +166,7 @@ public final class ClassProcessor {
         }
         return simpleName;
     }
-    
+
     public boolean isStandardNamedClass() {
         // Filter out interfaces, enums and annotations.
         final int mod = ctClass.getModifiers();
@@ -201,5 +201,10 @@ public final class ClassProcessor {
             name = name.substring(0, index);
         }
         return "project/src/main/java/" + name.replace('.', '/') + ".java";
+    }
+
+    public String getBinaryPath() {
+        String name = getCtClass().getName();
+        return "project/src/main/java/" + name.replace('.', '/') + ".class";
     }
 }

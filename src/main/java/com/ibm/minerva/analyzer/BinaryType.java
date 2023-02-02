@@ -30,24 +30,24 @@ public enum BinaryType {
     WAR(".war"),
     ZIP(".zip"),
     UNKNOWN(null);
-    
+
     private static final EnumSet<BinaryType> cbaEntries = EnumSet.of(JAR);
     private static final EnumSet<BinaryType> earEntries = EnumSet.of(CLASS, JAR, WAR);
     private static final EnumSet<BinaryType> ebaEntries = EnumSet.of(CBA, JAR, WAR);
     private static final EnumSet<BinaryType> jarEntries = EnumSet.of(CBA, CLASS, JAR, RAR, WAR);
     private static final EnumSet<BinaryType> jarInJarEntries = EnumSet.of(CLASS, JAR);
     private static final EnumSet<BinaryType> zipEntries = EnumSet.of(CLASS, EBA, EAR, JAR, RAR, WAR);
-    
+
     private final String extension;
-    
+
     private BinaryType(String extension) {
         this.extension = extension;
     }
-    
+
     public String getExtension() {
         return extension;
     }
-    
+
     public boolean isCbaEntryType() {
         return cbaEntries.contains(this);
     }
@@ -79,7 +79,7 @@ public enum BinaryType {
     public boolean isZipEntryType() {
         return zipEntries.contains(this);
     }
-    
+
     public static BinaryType getBinaryType(String name) {
         if (name.endsWith(JAR.extension)) {
             return JAR;
