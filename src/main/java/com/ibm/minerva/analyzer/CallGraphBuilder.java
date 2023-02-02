@@ -177,7 +177,7 @@ public final class CallGraphBuilder {
     }
 
     public void clean() {
-        // Delete temporary class files with the JVM exits.
+        // Delete temporary class files when the JVM exits.
         tempClassFiles.forEach(f -> {
             f.deleteOnExit();
         });
@@ -209,7 +209,7 @@ public final class CallGraphBuilder {
         return graph;
     }
 
-    public void callgraph2JSON(CallGraph callGraph, File savePath) {
+    private void callgraph2JSON(CallGraph callGraph, File savePath) {
         final Graph<ClassNode, CallGraphEdge> graph = getDirectedGraph(callGraph);
         final JSONExporter<ClassNode, CallGraphEdge> exporter = new JSONExporter<>(v -> v.getClassName());
         exporter.setVertexAttributeProvider((v) -> {
