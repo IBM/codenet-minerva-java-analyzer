@@ -27,6 +27,7 @@ import java.io.InputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -85,14 +86,57 @@ public final class CallGraphBuilder {
     static final class ClassNode implements Serializable {
 
         private final String className;
+        private final boolean isPrivate;
+        private final int fields;
+        private final int staticFields;
+        private final int instanceFields;
+        private final int methods;
+        private final int staticMethods;
+        private final int instanceMethods;
         private static final long serialVersionUID = 8705110576322386742L;
-
-        public ClassNode(String name) {
-            this.className = name.substring(1).replace("/", ".");
+        
+        public ClassNode(IClass clazz) {
+            this.className = clazz.getName().toString().substring(1).replace("/", ".");
+            this.isPrivate = clazz.isPrivate();
+            this.fields = size(clazz.getAllFields());
+            this.staticFields = size(clazz.getAllStaticFields());
+            this.instanceFields = size(clazz.getAllInstanceFields());
+            final Collection<? extends IMethod> methods = clazz.getDeclaredMethods();
+            this.methods = size(methods);
+            this.staticMethods = (methods != null) ? (int) methods.stream().filter(m -> m.isStatic()).count() : 0;
+            this.instanceMethods = this.methods - this.staticMethods;
         }
 
         public String getClassName() {
             return className;
+        }
+        
+        public boolean isPrivate() {
+            return isPrivate;
+        }
+        
+        public int getFieldCount() {
+            return fields;
+        }
+        
+        public int getStaticFieldCount() {
+            return staticFields;
+        }
+        
+        public int getInstanceFieldCount() {
+            return instanceFields;
+        }
+        
+        public int getMethodCount() {
+            return methods;
+        }
+        
+        public int getStaticMethodCount() {
+            return staticMethods;
+        }
+        
+        public int getInstanceMethodCount() {
+            return instanceMethods;
         }
 
         @Override
@@ -109,24 +153,42 @@ public final class CallGraphBuilder {
         public boolean equals(Object o) {
             return (o instanceof ClassNode) && (toString().equals(o.toString()));
         }
+        
+        private static int size(Collection<?> c) {
+            return (c != null) ? c.size() : 0;
+        }
     }
 
     static final class CallGraphEdge implements Serializable {
 
-        private final Atom from;
-        private final Atom to;
+        private final Atom source;
+        private final Atom destination;
+        private int weight;
         private static final long serialVersionUID = -8284030936836318929L;
 
-        public CallGraphEdge(Atom from, Atom to) {
-            this.from = from;
-            this.to = to;
+        public CallGraphEdge(Atom source, Atom destination) {
+            this(source, destination, 1);
+        }
+        
+        private CallGraphEdge(Atom source, Atom destination, int weight) {
+            this.source = source;
+            this.destination = destination;
+            this.weight = weight;
+        }
+        
+        public int getWeight() {
+            return weight;
+        }
+        
+        public void incrementWeight() {
+            ++weight;
         }
 
         @Override
         public String toString() {
             final JsonObject o = new JsonObject();
-            o.addProperty("from", this.from.toString());
-            o.addProperty("to", this.to.toString());
+            o.addProperty("source", this.source.toString());
+            o.addProperty("destination", this.destination.toString());
             return o.toString();
         }
 
@@ -192,15 +254,21 @@ public final class CallGraphBuilder {
             outGoingCalls.forEach(callSiteReference -> {
                 callGraph.getPossibleTargets(entrypointNode, callSiteReference).forEach(callTarget -> {
                     if (isApplicationClass(callTarget.getMethod().getDeclaringClass())) {
-                        final ClassNode source = new ClassNode(entryMethod.getDeclaringClass().getName().toString());
-                        final ClassNode target = new ClassNode(callTarget.getMethod().getDeclaringClass().getName().toString());
+                        final ClassNode source = new ClassNode(entryMethod.getDeclaringClass());
+                        final ClassNode target = new ClassNode(callTarget.getMethod().getDeclaringClass());
                         if (!source.equals(target)) {
                             graph.addVertex(source);
                             graph.addVertex(target);
-                            graph.addEdge(
-                                    source,
-                                    target,
-                                    new CallGraphEdge(entryMethod.getName(), callTarget.getMethod().getName()));
+                            CallGraphEdge edge = graph.getEdge(source, target);
+                            if (edge == null) {
+                                graph.addEdge(
+                                        source,
+                                        target,
+                                        new CallGraphEdge(entryMethod.getName(), callTarget.getMethod().getName()));
+                            }
+                            else {
+                                edge.incrementWeight();
+                            }
                         }
                     }
                 });
@@ -215,7 +283,17 @@ public final class CallGraphBuilder {
         exporter.setVertexAttributeProvider((v) -> {
             final Map<String, Attribute> map = new LinkedHashMap<>();
             map.put("label", DefaultAttribute.createAttribute(v.toString()));
+            map.put("is_class_private", DefaultAttribute.createAttribute(v.isPrivate()));
+            map.put("num_total_fields", DefaultAttribute.createAttribute(v.getFieldCount()));
+            map.put("num_static_fields", DefaultAttribute.createAttribute(v.getStaticFieldCount()));
+            map.put("num_instance_fields", DefaultAttribute.createAttribute(v.getInstanceFieldCount()));
+            map.put("num_total_methods", DefaultAttribute.createAttribute(v.getMethodCount()));
+            map.put("num_static_methods", DefaultAttribute.createAttribute(v.getStaticMethodCount()));
+            map.put("num_instance_methods", DefaultAttribute.createAttribute(v.getInstanceMethodCount()));
             return map;
+        });
+        exporter.setEdgeAttributeProvider((e) -> {
+            return Collections.singletonMap("weight", DefaultAttribute.createAttribute(e.getWeight()));
         });
         // Export the graph to JSON
         exporter.exportGraph(graph, savePath);
@@ -279,10 +357,10 @@ public final class CallGraphBuilder {
     private File createTemporaryFile(byte[] clazz) {
         try {
             final File f = File.createTempFile("minerva", null);
+            tempClassFiles.add(f);
             final FileOutputStream fos = new FileOutputStream(f);
             fos.write(clazz);
             fos.close();
-            tempClassFiles.add(f);
             return f;
         }
         catch (Exception e) {
