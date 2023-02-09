@@ -62,6 +62,11 @@ public class Analyzer {
         return this;
     }
 
+    public Analyzer setCallGraphBuilder(boolean useCallGraphBuilder) throws IOException {
+        ap.setCallGraphBuilder(useCallGraphBuilder ? new CallGraphBuilder() : null);
+        return this;
+    }
+
     public void run() throws IOException {
         logger.info(() -> formatMessage("StartingAnalyzer"));
         logger.info(() -> formatMessage("AnalyzingArchive", archive));
@@ -72,7 +77,6 @@ public class Analyzer {
         }
         logger.config(() -> formatMessage("AgentOutputStream", 
                 useSystemOut ? "System.out" : "System.err"));
-        ap.setCallGraphBuilder(new CallGraphBuilder());
         final ArchiveProcessor archiveProcessor = new ArchiveProcessor(ap);
         archiveProcessor.processBinaryFile(archive);
         ap.write();
