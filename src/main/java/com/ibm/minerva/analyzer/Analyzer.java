@@ -68,19 +68,24 @@ public class Analyzer {
     }
 
     public void run() throws IOException {
-        logger.info(() -> formatMessage("StartingAnalyzer"));
-        logger.info(() -> formatMessage("AnalyzingArchive", archive));
-        logger.config(() -> formatMessage("OutputDirectory", outputDir));
-        if (packages != null) {
-            logger.config(() -> formatMessage(isPackageIncludeList ?
-                    "PackageIncludeList" : "PackageExcludeList", packages));
+        try {
+            logger.info(() -> formatMessage("StartingAnalyzer"));
+            logger.info(() -> formatMessage("AnalyzingArchive", archive));
+            logger.config(() -> formatMessage("OutputDirectory", outputDir));
+            if (packages != null) {
+                logger.config(() -> formatMessage(isPackageIncludeList ?
+                        "PackageIncludeList" : "PackageExcludeList", packages));
+            }
+            logger.config(() -> formatMessage("AgentOutputStream", 
+                    useSystemOut ? "System.out" : "System.err"));
+            final ArchiveProcessor archiveProcessor = new ArchiveProcessor(ap);
+            archiveProcessor.processBinaryFile(archive);
+            ap.write();
         }
-        logger.config(() -> formatMessage("AgentOutputStream", 
-                useSystemOut ? "System.out" : "System.err"));
-        final ArchiveProcessor archiveProcessor = new ArchiveProcessor(ap);
-        archiveProcessor.processBinaryFile(archive);
-        ap.write();
-        ap.clean();
+        finally {
+            // Schedule any temporary files created during the process for deletion.
+            ap.clean();
+        }
     }
 
     public static void setLoggingLevel(Level level) {
@@ -102,6 +107,10 @@ public class Analyzer {
                 analyzer.setPackageRestrictions(packages, false);
             }
             try {
+                if (args.length > 3) {
+                    final boolean generateCallGraph = Boolean.parseBoolean(args[3]);
+                    analyzer.setCallGraphBuilder(generateCallGraph);
+                }
                 analyzer.setAgentOutputStream(false).run();
             }
             catch (IOException e) {
