@@ -243,6 +243,7 @@ public final class CallGraphBuilder {
         tempClassFiles.forEach(f -> {
             f.deleteOnExit();
         });
+        tempClassFiles.clear();
     }
 
     private Graph<ClassNode, CallGraphEdge> getDirectedGraph(CallGraph callGraph) {
