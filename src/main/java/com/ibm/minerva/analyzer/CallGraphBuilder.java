@@ -207,27 +207,30 @@ public final class CallGraphBuilder {
         scope = createScope();
     }
 
-    public void write(File savePath) throws IOException {
+    public boolean write(File savePath) throws IOException {
         // Make class hierarchy
         try {
-            // Create class hierarchy
-            IClassHierarchy cha = ClassHierarchyFactory.make(scope, new ECJClassLoaderFactory(scope.getExclusions()));
+            if (classes.size() > 0) {
+                // Create class hierarchy
+                IClassHierarchy cha = ClassHierarchyFactory.make(scope, new ECJClassLoaderFactory(scope.getExclusions()));
 
-            Collection<Entrypoint> entryPoints = getEntryPoints(cha);
-            if (entryPoints.size() > 0) {
-                // Initialize analysis options
-                AnalysisOptions options = new AnalysisOptions();
-                options.setEntrypoints(entryPoints);
-                options.getSSAOptions().setDefaultValues(SymbolTable::getDefaultValue);
-                options.setReflectionOptions(ReflectionOptions.NONE);
-                IAnalysisCacheView cache = new AnalysisCacheImpl(AstIRFactory.makeDefaultFactory(), options.getSSAOptions());
+                Collection<Entrypoint> entryPoints = getEntryPoints(cha);
+                if (entryPoints.size() > 0) {
+                    // Initialize analysis options
+                    AnalysisOptions options = new AnalysisOptions();
+                    options.setEntrypoints(entryPoints);
+                    options.getSSAOptions().setDefaultValues(SymbolTable::getDefaultValue);
+                    options.setReflectionOptions(ReflectionOptions.NONE);
+                    IAnalysisCacheView cache = new AnalysisCacheImpl(AstIRFactory.makeDefaultFactory(), options.getSSAOptions());
 
-                // Build the call graph
-                com.ibm.wala.ipa.callgraph.CallGraphBuilder<?> builder = new ZeroOneCFABuilderFactory().make(options, cache, cha);
-                CallGraph callGraph = builder.makeCallGraph(options, null);
+                    // Build the call graph
+                    com.ibm.wala.ipa.callgraph.CallGraphBuilder<?> builder = new ZeroOneCFABuilderFactory().make(options, cache, cha);
+                    CallGraph callGraph = builder.makeCallGraph(options, null);
 
-                // Save the call graph as JSON
-                callgraph2JSON(callGraph, savePath);
+                    // Save the call graph as JSON
+                    callgraph2JSON(callGraph, savePath);
+                    return true;
+                }
             }
         }
         catch (Throwable t) {
@@ -236,6 +239,7 @@ public final class CallGraphBuilder {
             }
             throw new IOException(t);
         }
+        return false;
     }
 
     public void clean() {
