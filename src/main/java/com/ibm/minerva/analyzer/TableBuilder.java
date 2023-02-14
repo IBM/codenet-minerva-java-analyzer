@@ -150,8 +150,15 @@ public final class TableBuilder implements ApplicationProcessor {
         try (Writer agentConfigWriter = createWriter(AGENT_CONFIG_FILE_NAME)) {
             gson.toJson(createAgentConfiguration(), agentConfigWriter);
         }
-        // Write callGraph.json.
-        writeCallGraph(CALL_GRAPH_FILE_NAME);
+        if (callGraphBuilder != null) {
+            // Write callGraph.json.
+            if (!writeCallGraph(CALL_GRAPH_FILE_NAME)) {
+                // Write an empty JSON document if no call graph was generated.
+                try (Writer agentConfigWriter = createWriter(CALL_GRAPH_FILE_NAME, false)) {
+                    gson.toJson(new JsonObject(), agentConfigWriter);
+                }
+            }
+        }
     }
 
     public void clean() {
@@ -161,18 +168,22 @@ public final class TableBuilder implements ApplicationProcessor {
     }
 
     private Writer createWriter(String file) throws IOException {
+        return createWriter(file, true);
+    }
+    
+    private Writer createWriter(String file, boolean writeMessage) throws IOException {
         File f = new File(tableDir, file);
-        logger.info(() -> formatMessage("WritingFile", f));
+        if (writeMessage) {
+            logger.info(() -> formatMessage("WritingFile", f));
+        }
         OutputStream os = new FileOutputStream(f);
         return new OutputStreamWriter(os, "UTF-8");
     }
 
-    private void writeCallGraph(String file) throws IOException {
-        if (callGraphBuilder != null) {
-            File f = new File(tableDir, file);
-            logger.info(() -> formatMessage("WritingFile", f));
-            callGraphBuilder.write(f);
-        }
+    private boolean writeCallGraph(String file) throws IOException {
+        File f = new File(tableDir, file);
+        logger.info(() -> formatMessage("WritingFile", f));
+        return callGraphBuilder.write(f);
     }
 
     private String addToSymTable(ClassProcessor cp) {
