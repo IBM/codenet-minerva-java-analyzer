@@ -34,6 +34,7 @@ import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.jar.JarFile;
+import java.util.logging.Logger;
 
 import org.jgrapht.Graph;
 import org.jgrapht.graph.DefaultDirectedGraph;
@@ -43,7 +44,6 @@ import org.jgrapht.nio.json.JSONExporter;
 
 import com.google.gson.JsonObject;
 import com.ibm.wala.cast.ir.ssa.AstIRFactory;
-import com.ibm.wala.cast.java.client.impl.ZeroOneCFABuilderFactory;
 import com.ibm.wala.cast.java.ipa.callgraph.JavaSourceAnalysisScope;
 import com.ibm.wala.cast.java.translator.jdt.ecj.ECJClassLoaderFactory;
 import com.ibm.wala.classLoader.CallSiteReference;
@@ -67,7 +67,10 @@ import com.ibm.wala.ssa.SymbolTable;
 import com.ibm.wala.types.ClassLoaderReference;
 
 public final class CallGraphBuilder {
-
+    
+    private static final Logger logger = LoggingUtil.getLogger(CallGraphBuilder.class);
+    
+    private final CallGraphBuilderType type;
     private final AnalysisScope scope;
     private final Set<ModuleEntry> classes = new LinkedHashSet<>();
     private final Module module = new Module() {
@@ -203,7 +206,8 @@ public final class CallGraphBuilder {
         }
     }
 
-    public CallGraphBuilder() throws IOException {
+    public CallGraphBuilder(CallGraphBuilderType type) throws IOException {
+        this.type = (type != null) ? type : CallGraphBuilderType.RTA;
         scope = createScope();
     }
 
@@ -224,7 +228,7 @@ public final class CallGraphBuilder {
                     IAnalysisCacheView cache = new AnalysisCacheImpl(AstIRFactory.makeDefaultFactory(), options.getSSAOptions());
 
                     // Build the call graph
-                    com.ibm.wala.ipa.callgraph.CallGraphBuilder<?> builder = new ZeroOneCFABuilderFactory().make(options, cache, cha);
+                    com.ibm.wala.ipa.callgraph.CallGraphBuilder<?> builder = type.createCallGraphBuilder(options, cache, cha);
                     CallGraph callGraph = builder.makeCallGraph(options, null);
 
                     // Save the call graph as JSON
@@ -237,6 +241,7 @@ public final class CallGraphBuilder {
             if (t instanceof IOException) {
                 throw (IOException) t;
             }
+            logger.severe(() -> "");
             throw new IOException(t);
         }
         return false;
@@ -316,6 +321,7 @@ public final class CallGraphBuilder {
                 }
                 catch (IOException e) {
                     // TODO: Report an error using logging.
+                    logger.severe(() -> "");
                     return new ByteArrayInputStream(new byte[0]);
                 }
             };
@@ -370,6 +376,7 @@ public final class CallGraphBuilder {
         }
         catch (Exception e) {
             // TODO: Report warning.
+            logger.warning(() -> "");
         }
         return null;
     }
@@ -389,6 +396,7 @@ public final class CallGraphBuilder {
             if (t instanceof IOException) {
                 throw (IOException) t;
             }
+            logger.severe(() -> "");
             throw new IOException(t);
         }
         return scope;
