@@ -22,7 +22,9 @@ import static com.ibm.minerva.analyzer.MessageFormatter.formatMessage;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.LinkedHashSet;
+import java.util.Optional;
 import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.logging.Level;
@@ -63,7 +65,11 @@ public class Analyzer {
     }
 
     public Analyzer setCallGraphBuilder(boolean useCallGraphBuilder) throws IOException {
-        ap.setCallGraphBuilder(useCallGraphBuilder ? new CallGraphBuilder() : null);
+        return setCallGraphBuilder(useCallGraphBuilder ? CallGraphBuilderType.RTA : null);
+    }
+    
+    public Analyzer setCallGraphBuilder(CallGraphBuilderType type) throws IOException {
+        ap.setCallGraphBuilder(type != null ? new CallGraphBuilder(type) : null);
         return this;
     }
 
@@ -109,7 +115,16 @@ public class Analyzer {
             try {
                 if (args.length > 3) {
                     final boolean generateCallGraph = Boolean.parseBoolean(args[3]);
-                    analyzer.setCallGraphBuilder(generateCallGraph);
+                    if (generateCallGraph) {
+                        analyzer.setCallGraphBuilder(generateCallGraph);
+                    }
+                    else {
+                        // Try to match the name of one of the CallGraphBuilderType enum values.
+                        Optional<CallGraphBuilderType> o = Arrays.stream(CallGraphBuilderType.values()).filter(x -> args[3].equalsIgnoreCase(x.name())).findFirst();
+                        if (o.isPresent()) {
+                            analyzer.setCallGraphBuilder(o.get());
+                        }
+                    }
                 }
                 analyzer.setAgentOutputStream(false).run();
             }
