@@ -65,7 +65,7 @@ public class Analyzer {
     }
 
     public Analyzer setCallGraphBuilder(boolean useCallGraphBuilder) throws IOException {
-        return setCallGraphBuilder(useCallGraphBuilder ? CallGraphBuilderType.RTA : null);
+        return setCallGraphBuilder(useCallGraphBuilder ? CallGraphBuilderType.ZERO_ONE_CFA : null);
     }
     
     public Analyzer setCallGraphBuilder(CallGraphBuilderType type) throws IOException {
