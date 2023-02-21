@@ -18,6 +18,8 @@
 
 package com.ibm.minerva.analyzer;
 
+import static com.ibm.minerva.analyzer.MessageFormatter.formatMessage;
+
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -241,7 +243,7 @@ public final class CallGraphBuilder {
             if (t instanceof IOException) {
                 throw (IOException) t;
             }
-            logger.severe(() -> "");
+            logger.severe(() -> formatMessage("CallGraphWriteError", savePath, t.getMessage()));
             throw new IOException(t);
         }
         return false;
@@ -312,7 +314,7 @@ public final class CallGraphBuilder {
     public void addToScope(ClassProcessor cp, byte[] clazz) {
         final String binaryPath = cp.getBinaryPath();
         final String className = cp.getClassName();
-        final File tempClassFile = createTemporaryFile(clazz);
+        final File tempClassFile = createTemporaryFile(className, clazz);
         final InputStreamFactory isf;
         if (tempClassFile != null) {
             isf = () -> {
@@ -320,8 +322,8 @@ public final class CallGraphBuilder {
                     return new FileInputStream(tempClassFile);
                 }
                 catch (IOException e) {
-                    // TODO: Report an error using logging.
-                    logger.severe(() -> "");
+                    logger.severe(() -> formatMessage("CallGraphTempFileReadError",
+                            className, e.getMessage()));
                     return new ByteArrayInputStream(new byte[0]);
                 }
             };
@@ -365,7 +367,7 @@ public final class CallGraphBuilder {
         });
     }
 
-    private File createTemporaryFile(byte[] clazz) {
+    private File createTemporaryFile(String className, byte[] clazz) {
         try {
             final File f = File.createTempFile("minerva", null);
             tempClassFiles.add(f);
@@ -375,8 +377,8 @@ public final class CallGraphBuilder {
             return f;
         }
         catch (Exception e) {
-            // TODO: Report warning.
-            logger.warning(() -> "");
+            logger.warning(() -> formatMessage("CallGraphTempFileWriteWarning",
+                    className, e.getMessage()));
         }
         return null;
     }
@@ -396,7 +398,7 @@ public final class CallGraphBuilder {
             if (t instanceof IOException) {
                 throw (IOException) t;
             }
-            logger.severe(() -> "");
+            logger.severe(() -> formatMessage("CallGraphBuildError", t.getMessage()));
             throw new IOException(t);
         }
         return scope;

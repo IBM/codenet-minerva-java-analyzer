@@ -41,6 +41,7 @@ public class Analyzer {
     private Set<String> packages;
     private boolean isPackageIncludeList;
     private boolean useSystemOut;
+    private CallGraphBuilderType callGraphBuilderType;
 
     public Analyzer(File archive, File outputDir) {
         if (archive == null || outputDir == null) {
@@ -69,6 +70,7 @@ public class Analyzer {
     }
     
     public Analyzer setCallGraphBuilder(CallGraphBuilderType type) throws IOException {
+        this.callGraphBuilderType = type;
         ap.setCallGraphBuilder(type != null ? new CallGraphBuilder(type) : null);
         return this;
     }
@@ -84,6 +86,10 @@ public class Analyzer {
             }
             logger.config(() -> formatMessage("AgentOutputStream", 
                     useSystemOut ? "System.out" : "System.err"));
+            if (callGraphBuilderType != null) {
+                logger.config(() -> formatMessage("CallGraphAlgorithm",
+                        callGraphBuilderType));
+            }
             final ArchiveProcessor archiveProcessor = new ArchiveProcessor(ap);
             archiveProcessor.processBinaryFile(archive);
             ap.write();
