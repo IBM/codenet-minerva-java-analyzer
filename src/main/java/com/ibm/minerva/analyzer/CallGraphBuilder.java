@@ -207,7 +207,7 @@ public final class CallGraphBuilder {
     }
 
     public CallGraphBuilder(CallGraphBuilderType type) throws IOException {
-        this.type = (type != null) ? type : CallGraphBuilderType.RTA;
+        this.type = (type != null) ? type : CallGraphBuilderType.ZERO_ONE_CFA;
         scope = createScope();
     }
 
