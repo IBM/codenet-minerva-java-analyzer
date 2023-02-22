@@ -22,8 +22,10 @@ import static com.ibm.minerva.analyzer.MessageFormatter.formatMessage;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.StringTokenizer;
@@ -34,7 +36,7 @@ public class Analyzer {
 
     private static final Logger logger = LoggingUtil.getLogger(Analyzer.class);
 
-    private final File archive;
+    private final File[] archives;
     private final File outputDir;
     private final ApplicationProcessor ap;
 
@@ -44,10 +46,14 @@ public class Analyzer {
     private CallGraphBuilderType callGraphBuilderType;
 
     public Analyzer(File archive, File outputDir) {
-        if (archive == null || outputDir == null) {
+        this(new File[] {archive}, outputDir);
+    }
+    
+    public Analyzer(File[] archives, File outputDir) {
+        if (archives == null || Arrays.stream(archives).anyMatch(x -> x == null) || outputDir == null) {
             throw new NullPointerException();
         }
-        this.archive = archive;
+        this.archives = archives;
         this.outputDir = outputDir;
         this.ap = new TableBuilder(outputDir);
     }
@@ -78,7 +84,6 @@ public class Analyzer {
     public void run() throws IOException {
         try {
             logger.info(() -> formatMessage("StartingAnalyzer"));
-            logger.info(() -> formatMessage("AnalyzingArchive", archive));
             logger.config(() -> formatMessage("OutputDirectory", outputDir));
             if (packages != null) {
                 logger.config(() -> formatMessage(isPackageIncludeList ?
@@ -91,7 +96,10 @@ public class Analyzer {
                         callGraphBuilderType));
             }
             final ArchiveProcessor archiveProcessor = new ArchiveProcessor(ap);
-            archiveProcessor.processBinaryFile(archive);
+            for (File archive : archives) {
+                logger.info(() -> formatMessage("AnalyzingArchive", archive));
+                archiveProcessor.processBinaryFile(archive);
+            }
             ap.write();
         }
         finally {
@@ -106,7 +114,21 @@ public class Analyzer {
 
     public static void main(String[] args) {
         if (args.length > 1) {
-            final Analyzer analyzer = new Analyzer(new File(args[0]), new File(args[1]));
+            final Analyzer analyzer;
+            if (!args[0].contains(File.pathSeparator)) {
+                analyzer = new Analyzer(new File(args[0]), new File(args[1]));
+            }
+            else {
+                final List<File> archives = new ArrayList<>();
+                final StringTokenizer st = new StringTokenizer(args[0], File.pathSeparator);
+                while (st.hasMoreTokens()) {
+                    final String file = st.nextToken().trim();
+                    if (!file.isEmpty()) {
+                        archives.add(new File(file));
+                    }
+                }
+                analyzer = new Analyzer(archives.toArray(new File[archives.size()]), new File(args[1]));
+            }
             if (args.length > 2) {
                 final Set<String> packages = new LinkedHashSet<>();
                 final StringTokenizer st = new StringTokenizer(args[2], ",");
