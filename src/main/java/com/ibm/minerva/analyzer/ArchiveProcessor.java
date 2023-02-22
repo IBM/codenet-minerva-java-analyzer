@@ -52,9 +52,14 @@ public final class ArchiveProcessor {
     }
 
     public void processBinaryFile(File thisBinaryFile) throws IOException {
+        if (!thisBinaryFile.exists()) {
+            // Warning message for non-existent file.
+            logger.warning(() -> formatMessage("ArchiveDoesNotExist", thisBinaryFile));
+            return;
+        }
         if (thisBinaryFile.length() == 0) {
             // Warning message for an empty file.
-            logger.warning(() -> formatMessage("ArchiveEmpty"));
+            logger.warning(() -> formatMessage("ArchiveEmpty", thisBinaryFile));
             return;
         }
         final String name = thisBinaryFile.getName().toLowerCase(Locale.ENGLISH);
