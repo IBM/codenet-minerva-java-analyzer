@@ -181,9 +181,7 @@ public final class TableBuilder implements ApplicationProcessor {
     }
 
     private boolean writeCallGraph(String file) throws IOException {
-        File f = new File(tableDir, file);
-        logger.info(() -> formatMessage("WritingFile", f));
-        return callGraphBuilder.write(f);
+        return callGraphBuilder.write(new File(tableDir, file));
     }
 
     private String addToSymTable(ClassProcessor cp) {

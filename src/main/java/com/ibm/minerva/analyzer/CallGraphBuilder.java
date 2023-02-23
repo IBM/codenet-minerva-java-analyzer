@@ -218,8 +218,10 @@ public final class CallGraphBuilder {
         try {
             if (classes.size() > 0) {
                 // Create class hierarchy
+                logger.info(() -> formatMessage("CallGraphClassHierarchyBuild"));
                 IClassHierarchy cha = ClassHierarchyFactory.make(scope, new ECJClassLoaderFactory(scope.getExclusions()));
 
+                logger.info(() -> formatMessage("CallGraphEndpointCalculation"));
                 Collection<Entrypoint> entryPoints = getEntryPoints(cha);
                 if (entryPoints.size() > 0) {
                     // Initialize analysis options
@@ -230,6 +232,7 @@ public final class CallGraphBuilder {
                     IAnalysisCacheView cache = new AnalysisCacheImpl(AstIRFactory.makeDefaultFactory(), options.getSSAOptions());
 
                     // Build the call graph
+                    logger.info(() -> formatMessage("CallGraphBuildInitial"));
                     com.ibm.wala.ipa.callgraph.CallGraphBuilder<?> builder = type.createCallGraphBuilder(options, cache, cha);
                     CallGraph callGraph = builder.makeCallGraph(options, null);
 
@@ -290,6 +293,7 @@ public final class CallGraphBuilder {
     }
 
     private void callgraph2JSON(CallGraph callGraph, File savePath) {
+        logger.info(() -> formatMessage("CallGraphBuildFinal"));
         final Graph<ClassNode, CallGraphEdge> graph = getDirectedGraph(callGraph);
         final JSONExporter<ClassNode, CallGraphEdge> exporter = new JSONExporter<>(v -> v.getClassName());
         exporter.setVertexAttributeProvider((v) -> {
@@ -308,6 +312,7 @@ public final class CallGraphBuilder {
             return Collections.singletonMap("weight", DefaultAttribute.createAttribute(e.getWeight()));
         });
         // Export the graph to JSON
+        logger.info(() -> formatMessage("WritingFile", savePath));
         exporter.exportGraph(graph, savePath);
     }
 
