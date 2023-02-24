@@ -38,6 +38,7 @@ public class Analyzer {
 
     private final File[] archives;
     private final File outputDir;
+    private final TableBuilderConfiguration config;
     private final ApplicationProcessor ap;
 
     private Set<String> packages;
@@ -46,16 +47,25 @@ public class Analyzer {
     private CallGraphBuilderType callGraphBuilderType;
 
     public Analyzer(File archive, File outputDir) {
-        this(new File[] {archive}, outputDir);
+        this(archive, outputDir, TableBuilderConfiguration.ALL);
+    }
+    
+    public Analyzer(File archive, File outputDir, TableBuilderConfiguration config) {
+        this(new File[] {archive}, outputDir, config);
     }
     
     public Analyzer(File[] archives, File outputDir) {
+        this(archives, outputDir, TableBuilderConfiguration.ALL);
+    }
+    
+    public Analyzer(File[] archives, File outputDir, TableBuilderConfiguration config) {
         if (archives == null || Arrays.stream(archives).anyMatch(x -> x == null) || outputDir == null) {
             throw new NullPointerException();
         }
         this.archives = archives;
         this.outputDir = outputDir;
-        this.ap = new TableBuilder(outputDir);
+        this.config = (config != null) ? config : TableBuilderConfiguration.NONE;
+        this.ap = new TableBuilder(outputDir, config);
     }
 
     public Analyzer setPackageRestrictions(Set<String> packages, boolean isPackageIncludeList) {
@@ -95,10 +105,14 @@ public class Analyzer {
                 logger.config(() -> formatMessage("CallGraphAlgorithm",
                         callGraphBuilderType));
             }
-            final ArchiveProcessor archiveProcessor = new ArchiveProcessor(ap);
-            for (File archive : archives) {
-                logger.info(() -> formatMessage("AnalyzingArchive", archive));
-                archiveProcessor.processBinaryFile(archive);
+            // Skips archive processing if there are no consumers (e.g. if only
+            // the "instrumenter-config.json" is being generated).
+            if (config.generateSymRefTables() || callGraphBuilderType != null) {
+                final ArchiveProcessor archiveProcessor = new ArchiveProcessor(ap);
+                for (File archive : archives) {
+                    logger.info(() -> formatMessage("AnalyzingArchive", archive));
+                    archiveProcessor.processBinaryFile(archive);
+                }
             }
             ap.write();
         }

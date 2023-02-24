@@ -55,6 +55,7 @@ public final class TableBuilder implements ApplicationProcessor {
     private static final String CALL_GRAPH_FILE_NAME = "callGraph.json";
 
     private final File tableDir;
+    private final TableBuilderConfiguration config;
 
     private final JsonObject symTable;
     private final JsonObject refTable;
@@ -69,10 +70,17 @@ public final class TableBuilder implements ApplicationProcessor {
     private boolean isPackageIncludeList;
     private boolean useSystemOut;
 
-    public TableBuilder(File tableDir) {
+    public TableBuilder(File tableDir, TableBuilderConfiguration config) {
         this.tableDir = tableDir;
-        this.symTable = createSymTable();
-        this.refTable = createRefTable();
+        this.config = (config != null) ? config : TableBuilderConfiguration.NONE;
+        if (this.config.generateSymRefTables()) {
+            this.symTable = createSymTable();
+            this.refTable = createRefTable();
+        }
+        else {
+            this.symTable = null;
+            this.refTable = null;
+        }
     }
 
     public void process(ClassProcessor cp, byte[] bytes) {
@@ -80,7 +88,9 @@ public final class TableBuilder implements ApplicationProcessor {
         if (isIncludedPackage(cp) && cp.isStandardNamedClass()) {
             if (!fqcns.contains(fqcn)) {
                 logger.info(() -> formatMessage("AnalyzingClass", cp.getCtClass().getName()));
-                addToRefTable(cp, addToSymTable(cp));
+                if (config.generateSymRefTables()) {
+                    addToRefTable(cp, addToSymTable(cp));
+                }
                 fqcns.add(fqcn);
                 if (callGraphBuilder != null) {
                     callGraphBuilder.addToScope(cp, bytes);
@@ -137,25 +147,29 @@ public final class TableBuilder implements ApplicationProcessor {
             logger.info(() -> formatMessage("DirectoryCreated", tableDir));
         }
         Gson gson = new GsonBuilder().serializeNulls().create();
-        // Write symTable.json.
-        try (Writer symTableWriter = createWriter(SYM_TABLE_FILE_NAME)) {
-            gson.toJson(symTable, symTableWriter);
-        }
-        // Write refTable.json.
-        try (Writer refTableWriter = createWriter(REF_TABLE_FILE_NAME)) {
-            gson.toJson(refTable, refTableWriter);
+        if (config.generateSymRefTables()) {
+            // Write symTable.json.
+            try (Writer symTableWriter = createWriter(SYM_TABLE_FILE_NAME)) {
+                gson.toJson(symTable, symTableWriter);
+            }
+            // Write refTable.json.
+            try (Writer refTableWriter = createWriter(REF_TABLE_FILE_NAME)) {
+                gson.toJson(refTable, refTableWriter);
+            }
         }
         gson = new GsonBuilder().serializeNulls().setPrettyPrinting().create();
-        // Write instrumenter-config.json.
-        try (Writer agentConfigWriter = createWriter(AGENT_CONFIG_FILE_NAME)) {
-            gson.toJson(createAgentConfiguration(), agentConfigWriter);
+        if (config.generateInstrumentationConfig()) {
+            // Write instrumenter-config.json.
+            try (Writer agentConfigWriter = createWriter(AGENT_CONFIG_FILE_NAME)) {
+                gson.toJson(createAgentConfiguration(), agentConfigWriter);
+            }
         }
         if (callGraphBuilder != null) {
             // Write callGraph.json.
             if (!writeCallGraph(CALL_GRAPH_FILE_NAME)) {
                 // Write an empty JSON document if no call graph was generated.
-                try (Writer agentConfigWriter = createWriter(CALL_GRAPH_FILE_NAME, false)) {
-                    gson.toJson(new JsonObject(), agentConfigWriter);
+                try (Writer callGraphWriter = createWriter(CALL_GRAPH_FILE_NAME, false)) {
+                    gson.toJson(new JsonObject(), callGraphWriter);
                 }
             }
         }
