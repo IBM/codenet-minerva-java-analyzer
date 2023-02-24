@@ -1,4 +1,7 @@
 # Project Minerva for Modernization - Java Binary Analyzer
+
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+
 Project Minerva for Modernization is a set of libraries to analyze Java applications using AI and provide recommendations for refactoring them into partitions, which can be starting points for microservices. This binary analyzer component enables the static analysis of Java application code in order to collect data for AI refactoring consideration.
 
 # Build (Maven Based)
