@@ -168,7 +168,7 @@ public final class TableBuilder implements ApplicationProcessor {
             // Write callGraph.json.
             if (!writeCallGraph(CALL_GRAPH_FILE_NAME)) {
                 // Write an empty JSON document if no call graph was generated.
-                try (Writer callGraphWriter = createWriter(CALL_GRAPH_FILE_NAME, false)) {
+                try (Writer callGraphWriter = createWriter(CALL_GRAPH_FILE_NAME)) {
                     gson.toJson(new JsonObject(), callGraphWriter);
                 }
             }
