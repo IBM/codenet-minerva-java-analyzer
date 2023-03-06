@@ -126,6 +126,10 @@ public class Analyzer {
         LoggingUtil.setLoggingLevel(level);
     }
 
+    // [0] : archive path(s)
+    // [1] : output directory
+    // [2] : package exclusion list
+    // [3] : build call graph (true|false|<algorithm-name>)
     public static void main(String[] args) {
         if (args.length > 1) {
             final Analyzer analyzer;
@@ -162,7 +166,7 @@ public class Analyzer {
                     }
                     else {
                         // Try to match the name of one of the CallGraphBuilderType enum values.
-                        Optional<CallGraphBuilderType> o = Arrays.stream(CallGraphBuilderType.values()).filter(x -> args[3].equalsIgnoreCase(x.name())).findFirst();
+                        Optional<CallGraphBuilderType> o = CallGraphBuilderType.find(args[3]);
                         if (o.isPresent()) {
                             analyzer.setCallGraphBuilder(o.get());
                         }

@@ -18,6 +18,9 @@
 
 package com.ibm.minerva.analyzer;
 
+import java.util.Arrays;
+import java.util.Optional;
+
 import com.ibm.wala.cast.java.client.impl.ZeroCFABuilderFactory;
 import com.ibm.wala.cast.java.client.impl.ZeroOneCFABuilderFactory;
 import com.ibm.wala.ipa.callgraph.AnalysisOptions;
@@ -49,5 +52,9 @@ public enum CallGraphBuilderType {
             IAnalysisCacheView cache, 
             IClassHierarchy cha) {
         return factory.createCallGraphBuilder(options, cache, cha);
+    }
+    
+    public static Optional<CallGraphBuilderType> find(String name) {
+        return Arrays.stream(values()).filter(x -> x.name().equalsIgnoreCase(name)).findFirst();
     }
 }
