@@ -68,6 +68,7 @@ public final class TableBuilder implements ApplicationProcessor {
     private CallGraphBuilder callGraphBuilder;
     private Set<String> packages;
     private boolean isPackageIncludeList;
+    private boolean allowAnyLegalClasses;
     private boolean useSystemOut;
 
     public TableBuilder(File tableDir, TableBuilderConfiguration config) {
@@ -85,7 +86,7 @@ public final class TableBuilder implements ApplicationProcessor {
 
     public void process(ClassProcessor cp, byte[] bytes) {
         final String fqcn = cp.toFQCN();
-        if (isIncludedPackage(cp) && cp.isStandardNamedClass()) {
+        if (isIncludedPackage(cp) && cp.isStandardNamedClass(allowAnyLegalClasses)) {
             if (!fqcns.contains(fqcn)) {
                 logger.info(() -> formatMessage("AnalyzingClass", cp.getCtClass().getName()));
                 if (config.generateSymRefTables()) {
@@ -135,6 +136,10 @@ public final class TableBuilder implements ApplicationProcessor {
     public void setPackageRestrictions(Set<String> packages, boolean isPackageIncludeList) {
         this.packages = packages;
         this.isPackageIncludeList = isPackageIncludeList;
+    }
+    
+    public void setAllowAnyLegalClasses(boolean allowAnyLegalClasses) {
+        this.allowAnyLegalClasses = allowAnyLegalClasses;
     }
 
     public void setAgentOutputStream(boolean useSystemOut) {

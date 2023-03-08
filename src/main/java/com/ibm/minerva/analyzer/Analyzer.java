@@ -74,6 +74,11 @@ public class Analyzer {
         ap.setPackageRestrictions(packages, isPackageIncludeList);
         return this;
     }
+    
+    public Analyzer setAllowAnyLegalClasses(boolean allowAnyLegalClasses) {
+        ap.setAllowAnyLegalClasses(allowAnyLegalClasses);
+        return this;
+    }
 
     public Analyzer setAgentOutputStream(boolean useSystemOut) {
         this.useSystemOut = useSystemOut;

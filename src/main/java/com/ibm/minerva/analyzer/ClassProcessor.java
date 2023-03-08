@@ -167,25 +167,29 @@ public final class ClassProcessor {
         return simpleName;
     }
 
-    public boolean isStandardNamedClass() {
-        // Filter out interfaces, enums and annotations.
-        final int mod = ctClass.getModifiers();
-        if (Modifier.isInterface(mod) || Modifier.isEnum(mod) || Modifier.isAnnotation(mod)) {
-            return false;
+    public boolean isStandardNamedClass(final boolean allowAnyLegalClasses) {
+        if (!allowAnyLegalClasses) {
+            // Filter out interfaces, enums and annotations.
+            final int mod = ctClass.getModifiers();
+            if (Modifier.isInterface(mod) || Modifier.isEnum(mod) || Modifier.isAnnotation(mod)) {
+                return false;
+            }
         }
         String name = getSimpleName();
         // Filter out module and package descriptors.
         if (MODULE_INFO.equals(name) || PACKAGE_INFO.equals(name)) {
             return false;
         }
-        // Filter out local and anonymous classes.
-        final int index = name.lastIndexOf('$');
-        if (index >= 0) {
-            name = name.substring(index+1);
-            if (name.length() > 0) {
-                char c = name.charAt(0);
-                if (c >= '0' && c <= '9') {
-                    return false;
+        if (!allowAnyLegalClasses) {
+            // Filter out local and anonymous classes.
+            final int index = name.lastIndexOf('$');
+            if (index >= 0) {
+                name = name.substring(index+1);
+                if (name.length() > 0) {
+                    final char c = name.charAt(0);
+                    if (c >= '0' && c <= '9') {
+                        return false;
+                    }
                 }
             }
         }
