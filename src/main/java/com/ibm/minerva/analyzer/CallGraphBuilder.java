@@ -27,6 +27,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serializable;
+import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -392,9 +393,18 @@ public final class CallGraphBuilder {
         AnalysisScope scope = new JavaSourceAnalysisScope();
         try {
             // Add standard libraries to scope.
-            final String[] stdlibs = WalaProperties.getJ2SEJarFiles();
-            for (String stdlib : stdlibs) {
-                scope.addToScope(ClassLoaderReference.Primordial, new JarFile(stdlib));
+            try {
+                Module m = getJavaBaseModule();
+                scope.addToScope(ClassLoaderReference.Primordial, m);
+            }
+            catch (Throwable t) {
+                // Fall back to using the default method for collecting the J2SE jars
+                // files when the JrtModule for "java.base" cannot be loaded. This is
+                // expected if the analyzer is being run with Java 8.
+                final String[] stdlibs = WalaProperties.getJ2SEJarFiles();
+                for (String stdlib : stdlibs) {
+                    scope.addToScope(ClassLoaderReference.Primordial, new JarFile(stdlib));
+                }
             }
             // Add application module to scope.
             scope.addToScope(ClassLoaderReference.Application, module);
@@ -407,6 +417,13 @@ public final class CallGraphBuilder {
             throw new IOException(t);
         }
         return scope;
+    }
+    
+    private Module getJavaBaseModule() throws Exception {
+        // Using reflection to avoid a compile time dependency on JrtModule.
+        Class<?> clazz = Class.forName("com.ibm.wala.core.java11.JrtModule");
+        Constructor<?> c = clazz.getConstructor(String.class);
+        return (Module) c.newInstance("java.base");
     }
 
     private boolean isApplicationClass(IClass _class) {
