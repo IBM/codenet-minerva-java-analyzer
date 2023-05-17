@@ -435,9 +435,7 @@ public final class CallGraphBuilder {
         cha.forEach(c -> {
             if (isApplicationClass(c)) {
                 c.getDeclaredMethods().forEach(method -> {
-                    if (method.isPublic()) {
-                        entrypoints.add(new DefaultEntrypoint(method, cha));
-                    }
+                    entrypoints.add(new DefaultEntrypoint(method, cha));
                 });
             }
         });
