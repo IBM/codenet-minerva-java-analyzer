@@ -31,7 +31,7 @@ import com.ibm.wala.ssa.SSAInstruction;
 
 
 public abstract class AbstractGraphEdge implements Serializable {
-	private static final long serialVersionUID = 1L;
+	private static final long serialVersionUID = 73380029269931811L;
 	public Integer weight = 1;
     public final String context;
     protected AbstractGraphEdge() {

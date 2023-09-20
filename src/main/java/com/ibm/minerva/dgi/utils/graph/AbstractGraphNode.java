@@ -25,7 +25,7 @@ import org.jgrapht.nio.Attribute;
 
 public abstract class AbstractGraphNode implements Serializable {
 
-	private static final long serialVersionUID = 1L;
+	private static final long serialVersionUID = -4458565959512522181L;
 
 	public abstract String getId();
 

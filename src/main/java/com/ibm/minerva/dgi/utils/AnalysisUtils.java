@@ -26,6 +26,8 @@ import com.ibm.wala.ipa.callgraph.impl.DefaultEntrypoint;
 import com.ibm.wala.ipa.cha.IClassHierarchy;
 import com.ibm.wala.types.ClassLoaderReference;
 
+import static com.ibm.minerva.analyzer.MessageFormatter.formatMessage;
+
 import java.util.*;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -69,10 +71,8 @@ public class AnalysisUtils {
             .flatMap(c -> {
               try {
                 return c.getDeclaredMethods().stream();
-              } catch (NullPointerException nullPointerException) {
-            	logger.severe("Error: "+c.getSourceFileName());
-//                Log.error(c.getSourceFileName());
-                System.exit(1);
+              } catch (Throwable t) {
+				logger.severe(() -> formatMessage("CallGraphBuildError", t.getMessage()));
                 return Stream.empty();
               }
             })
@@ -82,9 +82,6 @@ public class AnalysisUtils {
                     || method.isStatic())
             .map(method -> new DefaultEntrypoint(method, cha))
             .collect(Collectors.toList());
-
-//    Log.info("Registered " + entrypoints.size() + " entrypoints.");
-    logger.info("Registered " + entrypoints.size() + " entrypoints.");
     return entrypoints;
   }
 

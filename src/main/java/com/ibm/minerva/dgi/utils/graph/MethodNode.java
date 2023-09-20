@@ -31,7 +31,7 @@ import com.ibm.wala.classLoader.IMethod;
 
 public class MethodNode extends AbstractGraphNode {
 
-	private static final long serialVersionUID = 1L;
+	private static final long serialVersionUID = 1966838287941900414L;
 	public final String id;
     public final String method;
     public final String returnType;
