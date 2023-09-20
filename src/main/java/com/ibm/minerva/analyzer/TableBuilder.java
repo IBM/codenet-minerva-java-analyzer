@@ -53,7 +53,7 @@ public final class TableBuilder implements ApplicationProcessor {
     private static final String REF_TABLE_FILE_NAME = "refTable.json";
     private static final String AGENT_CONFIG_FILE_NAME = "instrumenter-config.json";
     private static final String CALL_GRAPH_FILE_NAME = "callGraph.json";
-    private static final String SDG_CALL_GRAPH_FILE_NAME = "sdgGraph.json";
+    private static final String SDG_CALL_GRAPH_FILE_NAME = "callGraph-methods.json";
 
     private final File tableDir;
     private final TableBuilderConfiguration config;
@@ -82,6 +82,11 @@ public final class TableBuilder implements ApplicationProcessor {
         else {
             this.symTable = null;
             this.refTable = null;
+        }
+    }
+    public void processExtraLibs(File[] extraLibs) {
+    	if (callGraphBuilder != null) {
+            callGraphBuilder.addLibsToScope(extraLibs);
         }
     }
 

@@ -34,6 +34,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.jar.JarFile;
@@ -413,6 +414,24 @@ public final class CallGraphBuilder {
         }
         return null;
     }
+    
+    public void addLibsToScope(File[] extraLibs) {
+    	for (File extraLibJar : extraLibs) {
+        	final String name = extraLibJar.getName().toLowerCase(Locale.ENGLISH);
+            final BinaryType bt = BinaryType.getBinaryType(name);
+            if (bt == BinaryType.JAR) {
+            	logger.info("-> Adding dependency " + extraLibJar.getName() + " to analysis scope.");
+			    try {
+					scope.addToScope(ClassLoaderReference.Extension, new JarFile(extraLibJar.getAbsolutePath()));
+			    } catch (Throwable t) {
+					logger.severe(() -> formatMessage("CallGraphBuildError", t.getMessage()));
+				}
+            }
+            else {
+            	logger.warning("The file " +extraLibJar.getAbsolutePath()+ " is not a JAR and it will be skipped.");
+            }
+		}
+    }
 
     private AnalysisScope createScope() throws IOException {
         AnalysisScope scope = new JavaSourceAnalysisScope();
@@ -431,6 +450,7 @@ public final class CallGraphBuilder {
                     scope.addToScope(ClassLoaderReference.Primordial, new JarFile(stdlib));
                 }
             }
+            
             // Add application module to scope.
             scope.addToScope(ClassLoaderReference.Application, module);
         }

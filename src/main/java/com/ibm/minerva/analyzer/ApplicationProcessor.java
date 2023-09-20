@@ -18,12 +18,14 @@
 
 package com.ibm.minerva.analyzer;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Set;
 
 public interface ApplicationProcessor {
 
     public void process(ClassProcessor cp, byte[] bytes);
+    public void processExtraLibs(File[] extraLibs);
     public void setCallGraphBuilder(CallGraphBuilder cgb);
     public void setPackageRestrictions(Set<String> packages, boolean isPackageIncludeList);
     public void setAllowAnyLegalClasses(boolean allowAnyLegalClasses);
