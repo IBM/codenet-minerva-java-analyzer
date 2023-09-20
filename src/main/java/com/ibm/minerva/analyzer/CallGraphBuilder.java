@@ -429,7 +429,7 @@ public final class CallGraphBuilder {
 				}
             }
             else {
-            	logger.warning(() -> formatMessage("CallGraphFileIsNotJAR", extraLibJar.getAbsolutePath()));
+            	logger.finest(() -> formatMessage("CallGraphFileIsNotJAR", extraLibJar.getAbsolutePath()));
             }
 		}
     }
