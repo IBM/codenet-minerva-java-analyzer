@@ -34,6 +34,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.jar.JarFile;
@@ -46,8 +47,10 @@ import org.jgrapht.nio.DefaultAttribute;
 import org.jgrapht.nio.json.JSONExporter;
 
 import com.google.gson.JsonObject;
+import com.ibm.minerva.dgi.utils.SDGGraph2JSON;
 import com.ibm.wala.cast.ir.ssa.AstIRFactory;
 import com.ibm.wala.cast.java.ipa.callgraph.JavaSourceAnalysisScope;
+import com.ibm.wala.cast.java.ipa.modref.AstJavaModRef;
 import com.ibm.wala.cast.java.translator.jdt.ecj.ECJClassLoaderFactory;
 import com.ibm.wala.classLoader.CallSiteReference;
 import com.ibm.wala.classLoader.IClass;
@@ -63,8 +66,12 @@ import com.ibm.wala.ipa.callgraph.CallGraph;
 import com.ibm.wala.ipa.callgraph.Entrypoint;
 import com.ibm.wala.ipa.callgraph.IAnalysisCacheView;
 import com.ibm.wala.ipa.callgraph.impl.DefaultEntrypoint;
+import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
+import com.ibm.wala.ipa.cfg.InterproceduralCFG;
 import com.ibm.wala.ipa.cha.ClassHierarchyFactory;
 import com.ibm.wala.ipa.cha.IClassHierarchy;
+import com.ibm.wala.ipa.slicer.SDG;
+import com.ibm.wala.ipa.slicer.Slicer;
 import com.ibm.wala.properties.WalaProperties;
 import com.ibm.wala.ssa.SymbolTable;
 import com.ibm.wala.types.ClassLoaderReference;
@@ -214,7 +221,7 @@ public final class CallGraphBuilder {
         scope = createScope();
     }
 
-    public boolean write(File savePath) throws IOException {
+    public boolean write(File callGraphFile, File sdgGraphFile) throws IOException {
         // Make class hierarchy
         try {
             if (classes.size() > 0) {
@@ -238,7 +245,26 @@ public final class CallGraphBuilder {
                     CallGraph callGraph = builder.makeCallGraph(options, null);
 
                     // Save the call graph as JSON
-                    callgraph2JSON(callGraph, savePath);
+                    callgraph2JSON(callGraph, callGraphFile);
+                    
+                    // Build System Dependency Graph (call graph with method information)
+                    logger.info(() -> formatMessage("CallGraphBuildMethodLevel"));
+                    SDG<? extends InstanceKey> sdg = new SDG<>(
+                            callGraph,
+                            builder.getPointerAnalysis(),
+                            new AstJavaModRef<>(),
+                            Slicer.DataDependenceOptions.NO_HEAP_NO_EXCEPTIONS,
+                            Slicer.ControlDependenceOptions.NO_EXCEPTIONAL_EDGES);
+
+                    // Build IPCFG
+                    InterproceduralCFG ipcfg_full = new InterproceduralCFG(callGraph,
+                            n -> n.getMethod().getReference().getDeclaringClass().getClassLoader() == JavaSourceAnalysisScope.SOURCE
+                                    || n == callGraph.getFakeRootNode() || n == callGraph.getFakeWorldClinitNode());
+
+                    // Save System Dependency Graph as JSON (call graph with method information) 
+                    SDGGraph2JSON.convertAndSave(sdg, callGraph, ipcfg_full, sdgGraphFile);
+                    logger.info(() -> formatMessage("WritingFile", sdgGraphFile.getAbsolutePath()));
+                    
                     return true;
                 }
             }
@@ -247,7 +273,7 @@ public final class CallGraphBuilder {
             if (t instanceof IOException) {
                 throw (IOException) t;
             }
-            logger.severe(() -> formatMessage("CallGraphWriteError", savePath, t.getMessage()));
+            logger.severe(() -> formatMessage("CallGraphWriteError", callGraphFile, t.getMessage()));
             throw new IOException(t);
         }
         return false;
@@ -388,6 +414,25 @@ public final class CallGraphBuilder {
         }
         return null;
     }
+    
+    public void addLibsToScope(File[] extraLibs) {
+    	for (File extraLibJar : extraLibs) {
+        	final String name = extraLibJar.getName().toLowerCase(Locale.ENGLISH);
+            final BinaryType bt = BinaryType.getBinaryType(name);
+            
+            if (bt == BinaryType.JAR) {
+            	logger.info(() -> formatMessage("CallGraphAddExtraLibToScope", extraLibJar.getName()));
+			    try {
+					scope.addToScope(ClassLoaderReference.Extension, new JarFile(extraLibJar.getAbsolutePath()));
+			    } catch (Throwable t) {
+					logger.severe(() -> formatMessage("CallGraphBuildError", t.getMessage()));
+				}
+            }
+            else {
+            	logger.finest(() -> formatMessage("CallGraphFileIsNotJAR", extraLibJar.getAbsolutePath()));
+            }
+		}
+    }
 
     private AnalysisScope createScope() throws IOException {
         AnalysisScope scope = new JavaSourceAnalysisScope();
@@ -406,6 +451,7 @@ public final class CallGraphBuilder {
                     scope.addToScope(ClassLoaderReference.Primordial, new JarFile(stdlib));
                 }
             }
+            
             // Add application module to scope.
             scope.addToScope(ClassLoaderReference.Application, module);
         }

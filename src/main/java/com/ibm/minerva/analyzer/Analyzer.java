@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import java.util.StringTokenizer;
@@ -37,6 +38,7 @@ public class Analyzer {
     private static final Logger logger = LoggingUtil.getLogger(Analyzer.class);
 
     private final File[] archives;
+    private final List<File> additionalLibraries;
     private final File outputDir;
     private final TableBuilderConfiguration config;
     private final ApplicationProcessor ap;
@@ -59,6 +61,14 @@ public class Analyzer {
     }
     
     public Analyzer(File[] archives, File outputDir, TableBuilderConfiguration config) {
+    	this(archives, outputDir, config, null);
+    }
+    
+    public Analyzer(File[] archives, File outputDir, File[] additionalLibs) {
+    	this(archives, outputDir, TableBuilderConfiguration.ALL, additionalLibs);
+    }
+    
+    public Analyzer(File[] archives, File outputDir, TableBuilderConfiguration config, File[] additionalLibs) {
         if (archives == null || Arrays.stream(archives).anyMatch(x -> x == null) || outputDir == null) {
             throw new NullPointerException();
         }
@@ -66,6 +76,12 @@ public class Analyzer {
         this.outputDir = outputDir;
         this.config = (config != null) ? config : TableBuilderConfiguration.NONE;
         this.ap = new TableBuilder(outputDir, config);
+        this.additionalLibraries = new ArrayList<File>();
+        
+        if (additionalLibs != null) {
+        	addExtraLibraries(additionalLibs);
+        }
+        
     }
 
     public Analyzer setPackageRestrictions(Set<String> packages, boolean isPackageIncludeList) {
@@ -95,6 +111,34 @@ public class Analyzer {
         ap.setCallGraphBuilder(type != null ? new CallGraphBuilder(type) : null);
         return this;
     }
+    
+    public void addExtraLibrary(File extraLib) {
+    	if (extraLib != null) {
+    		final String name = extraLib.getName().toLowerCase(Locale.ENGLISH);
+            final BinaryType bt = BinaryType.getBinaryType(name);
+            if (bt == BinaryType.JAR) {
+            	this.additionalLibraries.add(extraLib);
+            }
+    	}
+    }
+    
+    public void addExtraLibraries (File[] extraLibs) {
+		// Add extra user provided JARS to scope (i.e., JEE libraries)
+        if (extraLibs != null) {
+        	for (File extraLib : extraLibs) {
+        		// if is a directory, try to add any JAR inside the path as an extra library
+        		if (extraLib.isDirectory()) {
+        			File[] listOfExtraLibs = extraLib.listFiles();
+        			for (File e : listOfExtraLibs) {
+        				addExtraLibrary(e);
+        			}
+        		}
+        		else {
+	            	addExtraLibrary(extraLib);
+	            }
+			}
+        }
+    }
 
     public void run() throws IOException {
         try {
@@ -118,7 +162,13 @@ public class Analyzer {
                     logger.info(() -> formatMessage("AnalyzingArchive", archive));
                     archiveProcessor.processBinaryFile(archive);
                 }
+                
+                // Add extra libraries, if is there any
+                if (additionalLibraries != null && additionalLibraries.size() > 0) {
+                	archiveProcessor.processExtraLibs(additionalLibraries.toArray(new File[additionalLibraries.size()]));
+                }
             }
+            
             ap.write();
         }
         finally {
@@ -133,30 +183,39 @@ public class Analyzer {
 
     // [0] : archive path(s)
     // [1] : output directory
-    // [2] : package exclusion list
-    // [3] : build call graph (true|false|<algorithm-name>)
+    // [2] : additional libraries (especially JEE libraries)
+    // [3] : package exclusion list
+    // [4] : build call graph (true|false|<algorithm-name>)
     public static void main(String[] args) {
         if (args.length > 1) {
             final Analyzer analyzer;
-            if (!args[0].contains(File.pathSeparator)) {
-                analyzer = new Analyzer(new File(args[0]), new File(args[1]));
-            }
-            else {
-                final List<File> archives = new ArrayList<>();
-                final StringTokenizer st = new StringTokenizer(args[0], File.pathSeparator);
-                while (st.hasMoreTokens()) {
-                    final String file = st.nextToken().trim();
-                    if (!file.isEmpty()) {
-                        archives.add(new File(file));
-                    }
+            final List<File> archives = new ArrayList<>();
+            final List<File> extraLibs = new ArrayList<>();
+            
+            final StringTokenizer st = new StringTokenizer(args[0], File.pathSeparator);
+            while (st.hasMoreTokens()) {
+                final String file = st.nextToken().trim();
+                if (!file.isEmpty()) {
+                    archives.add(new File(file));
                 }
-                analyzer = new Analyzer(archives.toArray(new File[archives.size()]), new File(args[1]));
             }
             if (args.length > 2) {
+                final StringTokenizer st2 = new StringTokenizer(args[2], File.pathSeparator);
+                while (st2.hasMoreTokens()) {
+                    final String file = st2.nextToken().trim();
+                    if (!file.isEmpty()) {
+                    	extraLibs.add(new File(file));
+                    }
+                }
+            }
+            
+            analyzer = new Analyzer(archives.toArray(new File[archives.size()]), new File(args[1]), extraLibs.toArray(new File[extraLibs.size()]));
+            
+            if (args.length > 3) {
                 final Set<String> packages = new LinkedHashSet<>();
-                final StringTokenizer st = new StringTokenizer(args[2], ",");
-                while (st.hasMoreTokens()) {
-                    final String token = st.nextToken().trim();
+                final StringTokenizer st3 = new StringTokenizer(args[3], ",");
+                while (st3.hasMoreTokens()) {
+                    final String token = st3.nextToken().trim();
                     if (!token.isEmpty()) {
                         packages.add(token);
                     }
@@ -164,14 +223,14 @@ public class Analyzer {
                 analyzer.setPackageRestrictions(packages, false);
             }
             try {
-                if (args.length > 3) {
-                    final boolean generateCallGraph = Boolean.parseBoolean(args[3]);
+                if (args.length > 4) {
+                    final boolean generateCallGraph = Boolean.parseBoolean(args[4]);
                     if (generateCallGraph) {
                         analyzer.setCallGraphBuilder(generateCallGraph);
                     }
                     else {
                         // Try to match the name of one of the CallGraphBuilderType enum values.
-                        Optional<CallGraphBuilderType> o = CallGraphBuilderType.find(args[3]);
+                        Optional<CallGraphBuilderType> o = CallGraphBuilderType.find(args[4]);
                         if (o.isPresent()) {
                             analyzer.setCallGraphBuilder(o.get());
                         }
