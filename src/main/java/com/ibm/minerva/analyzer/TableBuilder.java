@@ -53,7 +53,7 @@ public final class TableBuilder implements ApplicationProcessor {
     private static final String REF_TABLE_FILE_NAME = "refTable.json";
     private static final String AGENT_CONFIG_FILE_NAME = "instrumenter-config.json";
     private static final String CALL_GRAPH_FILE_NAME = "callGraph.json";
-    private static final String SDG_CALL_GRAPH_FILE_NAME = "callGraph-methods.json";
+    private static final String CALL_GRAPH_METHODS_FILE_NAME = "callGraph-methods.json";
 
     private final File tableDir;
     private final TableBuilderConfiguration config;
@@ -177,12 +177,12 @@ public final class TableBuilder implements ApplicationProcessor {
         }
         if (callGraphBuilder != null) {
             // Write callGraph.json.
-            if (!writeCallGraphs(CALL_GRAPH_FILE_NAME, SDG_CALL_GRAPH_FILE_NAME)) {
+            if (!writeCallGraphs(CALL_GRAPH_FILE_NAME, CALL_GRAPH_METHODS_FILE_NAME)) {
                 // Write empties JSON documents if no call graph was generated.
                 try (Writer callGraphWriter = createWriter(CALL_GRAPH_FILE_NAME)) {
                     gson.toJson(new JsonObject(), callGraphWriter);
                 }
-                try (Writer callGraphWriter = createWriter(SDG_CALL_GRAPH_FILE_NAME)) {
+                try (Writer callGraphWriter = createWriter(CALL_GRAPH_METHODS_FILE_NAME)) {
                     gson.toJson(new JsonObject(), callGraphWriter);
                 }
             }

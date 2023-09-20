@@ -247,8 +247,8 @@ public final class CallGraphBuilder {
                     // Save the call graph as JSON
                     callgraph2JSON(callGraph, callGraphFile);
                     
-                    // Build SDG graph
-                    logger.info("Building System Dependency Graph.");
+                    // Build System Dependency Graph (call graph with method information)
+                    logger.info(() -> formatMessage("CallGraphBuildMethodLevel"));
                     SDG<? extends InstanceKey> sdg = new SDG<>(
                             callGraph,
                             builder.getPointerAnalysis(),
@@ -261,9 +261,9 @@ public final class CallGraphBuilder {
                             n -> n.getMethod().getReference().getDeclaringClass().getClassLoader() == JavaSourceAnalysisScope.SOURCE
                                     || n == callGraph.getFakeRootNode() || n == callGraph.getFakeWorldClinitNode());
 
-                    // Save SDG graph as JSON
+                    // Save System Dependency Graph as JSON (call graph with method information) 
                     SDGGraph2JSON.convertAndSave(sdg, callGraph, ipcfg_full, sdgGraphFile);
-                    logger.info("SDG saved at " + sdgGraphFile.getAbsolutePath());
+                    logger.info(() -> formatMessage("WritingFile", sdgGraphFile.getAbsolutePath()));
                     
                     return true;
                 }
@@ -419,8 +419,9 @@ public final class CallGraphBuilder {
     	for (File extraLibJar : extraLibs) {
         	final String name = extraLibJar.getName().toLowerCase(Locale.ENGLISH);
             final BinaryType bt = BinaryType.getBinaryType(name);
+            
             if (bt == BinaryType.JAR) {
-            	logger.info("-> Adding dependency " + extraLibJar.getName() + " to analysis scope.");
+            	logger.info(() -> formatMessage("CallGraphAddExtraLibToScope", extraLibJar.getName()));
 			    try {
 					scope.addToScope(ClassLoaderReference.Extension, new JarFile(extraLibJar.getAbsolutePath()));
 			    } catch (Throwable t) {
@@ -428,7 +429,7 @@ public final class CallGraphBuilder {
 				}
             }
             else {
-            	logger.warning("The file " +extraLibJar.getAbsolutePath()+ " is not a JAR and it will be skipped.");
+            	logger.warning(() -> formatMessage("CallGraphFileIsNotJAR", extraLibJar.getAbsolutePath()));
             }
 		}
     }

@@ -24,12 +24,10 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
-import java.util.logging.Logger;
 
 import org.jgrapht.graph.DefaultDirectedGraph;
 import org.jgrapht.nio.json.JSONExporter;
 
-import com.ibm.minerva.analyzer.LoggingUtil;
 import com.ibm.minerva.dgi.utils.graph.AbstractGraphEdge;
 import com.ibm.minerva.dgi.utils.graph.AbstractGraphNode;
 import com.ibm.minerva.dgi.utils.graph.CallEdge;
@@ -49,11 +47,9 @@ import com.ibm.wala.util.graph.GraphSlicer;
 import com.ibm.wala.util.graph.traverse.DFS;
 
 /**
- * The type Sdg 2 json.
+ * The type System Dependency Graph (SDG) to JSON.
  */
 public class SDGGraph2JSON {
-	
-	private static final Logger logger = LoggingUtil.getLogger(SDGGraph2JSON.class);
 
     private static JSONExporter<AbstractGraphNode, AbstractGraphEdge> getGraphExporter() {
         JSONExporter<AbstractGraphNode, AbstractGraphEdge> exporter = new JSONExporter<>(v -> String.valueOf(v.getId()));
@@ -147,7 +143,6 @@ public class SDGGraph2JSON {
 
     public static void convertAndSave(SDG<? extends InstanceKey> sdg, CallGraph cg, InterproceduralCFG ipcfg_full, File outputFile) {
         // Prune the Graph to keep only application classes.
-        logger.info("Pruning SDG to keep only Application classes.");
         Graph<Statement> prunedGraph = GraphSlicer.prune(sdg,
                 statement -> (
                         statement.getNode()
@@ -158,7 +153,6 @@ public class SDGGraph2JSON {
                                 .equals(ClassLoaderReference.Application)
                 )
         );
-        logger.info("SDG built and pruned. It has " + prunedGraph.getNumberOfNodes() + " nodes.");
 
         CallGraph callGraph = sdg.getCallGraph();
 
