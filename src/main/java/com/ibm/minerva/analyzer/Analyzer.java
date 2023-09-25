@@ -119,6 +119,9 @@ public class Analyzer {
             if (bt == BinaryType.JAR) {
             	this.additionalLibraries.add(extraLib);
             }
+            else {
+            	logger.finest(() -> formatMessage("CallGraphFileIsNotJAR", extraLib.getAbsolutePath()));
+            }
     	}
     }
     
