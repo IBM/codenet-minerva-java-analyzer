@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serializable;
 import java.lang.reflect.Constructor;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
@@ -38,9 +39,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.jar.JarFile;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 
 import org.jgrapht.Graph;
 import org.jgrapht.graph.DefaultDirectedGraph;
@@ -49,7 +47,6 @@ import org.jgrapht.nio.DefaultAttribute;
 import org.jgrapht.nio.json.JSONExporter;
 
 import com.google.gson.JsonObject;
-import com.ibm.minerva.dgi.utils.AnalysisUtils;
 import com.ibm.minerva.dgi.utils.SDGGraph2JSON;
 import com.ibm.wala.cast.ir.ssa.AstIRFactory;
 import com.ibm.wala.cast.java.ipa.callgraph.JavaSourceAnalysisScope;
@@ -60,6 +57,7 @@ import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.classLoader.IMethod;
 import com.ibm.wala.classLoader.Module;
 import com.ibm.wala.classLoader.ModuleEntry;
+import com.ibm.wala.classLoader.PhantomClass;
 import com.ibm.wala.core.util.strings.Atom;
 import com.ibm.wala.ipa.callgraph.AnalysisCacheImpl;
 import com.ibm.wala.ipa.callgraph.AnalysisOptions;
@@ -230,7 +228,7 @@ public final class CallGraphBuilder {
             if (classes.size() > 0) {
                 // Create class hierarchy
                 logger.info(() -> formatMessage("CallGraphClassHierarchyBuild"));
-                IClassHierarchy cha = ClassHierarchyFactory.makeWithPhantom(scope, new ECJClassLoaderFactory(scope.getExclusions()));
+                IClassHierarchy cha = ClassHierarchyFactory.makeWithRoot(scope, new ECJClassLoaderFactory(scope.getExclusions()));
 
                 logger.info(() -> formatMessage("CallGraphEndpointCalculation"));
                 Collection<Entrypoint> entryPoints = getEntryPoints(cha);
@@ -298,7 +296,7 @@ public final class CallGraphBuilder {
             final Iterable<CallSiteReference> outGoingCalls = () -> entrypointNode.iterateCallSites();
             outGoingCalls.forEach(callSiteReference -> {
                 callGraph.getPossibleTargets(entrypointNode, callSiteReference).forEach(callTarget -> {
-                    if (AnalysisUtils.isApplicationClass(callTarget.getMethod().getDeclaringClass())) {
+                    if (isApplicationClass(callTarget.getMethod().getDeclaringClass())) {
                         final ClassNode source = new ClassNode(entryMethod.getDeclaringClass());
                         final ClassNode target = new ClassNode(callTarget.getMethod().getDeclaringClass());
                         if (!source.equals(target)) {
@@ -475,41 +473,19 @@ public final class CallGraphBuilder {
         return (Module) c.newInstance("java.base");
     }
 
-//    private boolean isApplicationClass(IClass _class) {
-//        return _class.getClassLoader().getReference().equals(ClassLoaderReference.Application);
-//    }
+    private boolean isApplicationClass(IClass _class) {
+        return _class.getClassLoader().getReference().equals(ClassLoaderReference.Application);
+    }
 
-//    private Collection<Entrypoint> getEntryPoints(IClassHierarchy cha) {
-//        final Collection<Entrypoint> entrypoints = new ArrayList<>();
-//        cha.forEach(c -> {
-//            if (isApplicationClass(c)) {
-//                c.getDeclaredMethods().forEach(method -> {
-//                    entrypoints.add(new DefaultEntrypoint(method, cha));
-//                });
-//            }
-//        });
-//        return entrypoints;
-//    }
-    
-    public static Collection<Entrypoint> getEntryPoints(IClassHierarchy cha) {
-    	Collection<Entrypoint> entrypoints = StreamSupport.stream(cha.spliterator(), true)
-                .filter(AnalysisUtils::isApplicationClass)
-                .flatMap(c -> {
-                  try {
-                    return c.getDeclaredMethods().stream();
-                  } catch (Throwable t) {
-    				logger.severe(() -> formatMessage("CallGraphBuildError", t.getMessage()));
-                    return Stream.empty();
-                  }
-                })
-                .filter(method -> method.isPublic()
-                        || method.isPrivate()
-                        || method.isProtected()
-                        || method.isStatic())
-                .map(method -> new DefaultEntrypoint(method, cha))
-                .collect(Collectors.toList());
+    private Collection<Entrypoint> getEntryPoints(IClassHierarchy cha) {
+        final Collection<Entrypoint> entrypoints = new ArrayList<>();
+        cha.forEach(c -> {
+            if (isApplicationClass(c) && !(c instanceof PhantomClass)) {
+                c.getDeclaredMethods().forEach(method -> {
+                    entrypoints.add(new DefaultEntrypoint(method, cha));
+                });
+            }
+        });
         return entrypoints;
-      }
-    
-    
+    }
 }

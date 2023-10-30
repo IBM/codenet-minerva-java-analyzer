@@ -34,6 +34,7 @@ import com.ibm.minerva.dgi.utils.graph.CallEdge;
 import com.ibm.minerva.dgi.utils.graph.MethodNode;
 import com.ibm.minerva.dgi.utils.graph.SystemDepEdge;
 import com.ibm.wala.classLoader.CallSiteReference;
+import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.ipa.callgraph.CallGraph;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
 import com.ibm.wala.ipa.cfg.InterproceduralCFG;
@@ -117,7 +118,7 @@ public class SDGGraph2JSON {
                     // Get call statements that may execute in a given method
                     Iterator<CallSiteReference> outGoingCalls = p.iterateCallSites();
                     outGoingCalls.forEachRemaining( n -> {
-                        callGraph.getPossibleTargets(p, n).stream().filter(o -> AnalysisUtils.isApplicationClass(o.getMethod().getDeclaringClass()))
+                        callGraph.getPossibleTargets(p, n).stream().filter(o -> isApplicationClass(o.getMethod().getDeclaringClass()))
                                 .forEach(o -> {
                             MethodNode source = new MethodNode(p.getMethod());
                             MethodNode target = new MethodNode(o.getMethod());
@@ -169,5 +170,9 @@ public class SDGGraph2JSON {
         // Save the SDG as JSON
         JSONExporter<AbstractGraphNode, AbstractGraphEdge> sdg_exporter = getGraphExporter();
         sdg_exporter.exportGraph(sdg_graph, outputFile);
+    }
+    
+    private static boolean isApplicationClass(IClass _class) {
+        return _class.getClassLoader().getReference().equals(ClassLoaderReference.Application);
     }
 }
