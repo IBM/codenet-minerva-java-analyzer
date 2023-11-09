@@ -145,6 +145,8 @@ public class Analyzer {
 
     public void run() throws IOException {
         try {
+        	long start = System.currentTimeMillis();
+        	
             logger.info(() -> formatMessage("StartingAnalyzer"));
             logger.config(() -> formatMessage("OutputDirectory", outputDir));
             if (packages != null) {
@@ -172,6 +174,9 @@ public class Analyzer {
                 }
             }
             
+            long end = System.currentTimeMillis();
+            
+            logger.info("Time (in milliseconds) to process all classes: "+(end-start));
             ap.write();
         }
         finally {

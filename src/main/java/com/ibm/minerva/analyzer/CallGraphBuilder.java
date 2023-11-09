@@ -68,9 +68,11 @@ import com.ibm.wala.ipa.callgraph.Entrypoint;
 import com.ibm.wala.ipa.callgraph.IAnalysisCacheView;
 import com.ibm.wala.ipa.callgraph.impl.DefaultEntrypoint;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
+import com.ibm.wala.ipa.callgraph.propagation.StandardSolver;
 import com.ibm.wala.ipa.cfg.InterproceduralCFG;
 import com.ibm.wala.ipa.cha.ClassHierarchyFactory;
 import com.ibm.wala.ipa.cha.IClassHierarchy;
+import com.ibm.wala.ipa.modref.ModRef;
 import com.ibm.wala.ipa.slicer.SDG;
 import com.ibm.wala.ipa.slicer.Slicer;
 import com.ibm.wala.properties.WalaProperties;
@@ -227,8 +229,12 @@ public final class CallGraphBuilder {
         try {
             if (classes.size() > 0) {
                 // Create class hierarchy
+            	long start = System.currentTimeMillis();
                 logger.info(() -> formatMessage("CallGraphClassHierarchyBuild"));
-                IClassHierarchy cha = ClassHierarchyFactory.makeWithRoot(scope, new ECJClassLoaderFactory(scope.getExclusions()));
+                IClassHierarchy cha = ClassHierarchyFactory.makeWithPhantom(scope, new ECJClassLoaderFactory(scope.getExclusions()));
+                long end = System.currentTimeMillis();
+                
+                logger.info("Time (in milliseconds) to perform makeWithRoot: "+(end-start));
 
                 logger.info(() -> formatMessage("CallGraphEndpointCalculation"));
                 Collection<Entrypoint> entryPoints = getEntryPoints(cha);
@@ -241,30 +247,55 @@ public final class CallGraphBuilder {
                     IAnalysisCacheView cache = new AnalysisCacheImpl(AstIRFactory.makeDefaultFactory(), options.getSSAOptions());
 
                     // Build the call graph
+                    start = System.currentTimeMillis();
                     logger.info(() -> formatMessage("CallGraphBuildInitial"));
                     com.ibm.wala.ipa.callgraph.CallGraphBuilder<?> builder = type.createCallGraphBuilder(options, cache, cha);
                     CallGraph callGraph = builder.makeCallGraph(options, null);
+                    end = System.currentTimeMillis();
+                    
+                    logger.info("Time (in milliseconds) to generate the callGraph: "+(end-start));
 
+                    
+                    start = System.currentTimeMillis();
                     // Save the call graph as JSON
                     callgraph2JSON(callGraph, callGraphFile);
                     
+                    end = System.currentTimeMillis();
+                    
+                    logger.info("Time (in milliseconds) to save callGraph (obj level): "+(end-start));
+                    
                     // Build System Dependency Graph (call graph with method information)
+                    start = System.currentTimeMillis();
                     logger.info(() -> formatMessage("CallGraphBuildMethodLevel"));
-                    SDG<? extends InstanceKey> sdg = new SDG<>(
-                            callGraph,
-                            builder.getPointerAnalysis(),
-                            new AstJavaModRef<>(),
-                            Slicer.DataDependenceOptions.NO_HEAP_NO_EXCEPTIONS,
-                            Slicer.ControlDependenceOptions.NO_EXCEPTIONAL_EDGES);
+                    
+                    try {
+						SDG<? extends InstanceKey> sdg = new SDG<>(
+						        callGraph,
+						        builder.getPointerAnalysis(),
+						        new ModRef<>(),
+						        Slicer.DataDependenceOptions.NO_HEAP_NO_EXCEPTIONS,
+						        Slicer.ControlDependenceOptions.NO_EXCEPTIONAL_EDGES);
+						
+						// Build IPCFG
+						InterproceduralCFG ipcfg_full = new InterproceduralCFG(callGraph,
+						        n -> n.getMethod().getReference().getDeclaringClass().getClassLoader() == JavaSourceAnalysisScope.SOURCE
+						                || n == callGraph.getFakeRootNode() || n == callGraph.getFakeWorldClinitNode());
 
-                    // Build IPCFG
-                    InterproceduralCFG ipcfg_full = new InterproceduralCFG(callGraph,
-                            n -> n.getMethod().getReference().getDeclaringClass().getClassLoader() == JavaSourceAnalysisScope.SOURCE
-                                    || n == callGraph.getFakeRootNode() || n == callGraph.getFakeWorldClinitNode());
-
-                    // Save System Dependency Graph as JSON (call graph with method information) 
-                    SDGGraph2JSON.convertAndSave(sdg, callGraph, ipcfg_full, sdgGraphFile);
+						// Save System Dependency Graph as JSON (call graph with method information) 
+						SDGGraph2JSON.convertAndSave(sdg, callGraph, ipcfg_full, sdgGraphFile);
+						
+					} catch (Throwable t) {
+						logger.severe("Problem to generate callGraph-method: " + t);
+						logger.severe("Problem to generate callGraph-method message: " + t.getMessage());
+						logger.severe("Problem to generate callGraph-method cause: " + t.getCause());
+						logger.severe("Problem to generate callGraph-method stack trace: " + t.getStackTrace().toString());
+					}
+                    
+                    end = System.currentTimeMillis();
+                    
                     logger.info(() -> formatMessage("WritingFile", sdgGraphFile.getAbsolutePath()));
+                    
+                    logger.info("Time (in milliseconds) to save callGraph-methods (method level): "+(end-start));
                     
                     return true;
                 }
