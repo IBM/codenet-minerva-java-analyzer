@@ -18,16 +18,20 @@
 
 package com.ibm.minerva.dgi.utils;
 
+import static com.ibm.minerva.analyzer.MessageFormatter.formatMessage;
+
 import java.io.File;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
+import java.util.logging.Logger;
 
 import org.jgrapht.graph.DefaultDirectedGraph;
 import org.jgrapht.nio.json.JSONExporter;
 
+import com.ibm.minerva.analyzer.LoggingUtil;
 import com.ibm.minerva.dgi.utils.graph.AbstractGraphEdge;
 import com.ibm.minerva.dgi.utils.graph.AbstractGraphNode;
 import com.ibm.minerva.dgi.utils.graph.CallEdge;
@@ -51,6 +55,8 @@ import com.ibm.wala.util.graph.traverse.DFS;
  * The type System Dependency Graph (SDG) to JSON.
  */
 public class SDGGraph2JSON {
+	
+	private static final Logger logger = LoggingUtil.getLogger(SDGGraph2JSON.class);
 
     private static JSONExporter<AbstractGraphNode, AbstractGraphEdge> getGraphExporter() {
         JSONExporter<AbstractGraphNode, AbstractGraphEdge> exporter = new JSONExporter<>(v -> String.valueOf(v.getId()));
@@ -62,31 +68,33 @@ public class SDGGraph2JSON {
     private static org.jgrapht.Graph<AbstractGraphNode, AbstractGraphEdge> buildGraph(Supplier<Iterator<Statement>> entryPoints,
                                                                                       Graph<Statement> sdg, CallGraph callGraph,
                                                                                       BiFunction<Statement, Statement, String> edgeLabels) {
-
+    	
         org.jgrapht.Graph<AbstractGraphNode, AbstractGraphEdge> graph = new DefaultDirectedGraph<>(AbstractGraphEdge.class);
         // We'll use forward and backward search on the DFS to identify which CFG nodes are dominant
         // This is a forward DFS search (or exit time first search)
+                
         int dfsNumber = 0;
         Map<Statement,Integer> dfsFinish = HashMapFactory.make();
         Iterator<Statement> search = DFS.iterateFinishTime(sdg, entryPoints.get());
-        while (search.hasNext()) {
-            dfsFinish.put(search.next(), dfsNumber++);
-        }
-
+        
         // This is a reverse DFS search (or entry time first search)
         int reverseDfsNumber = 0;
         Map<Statement,Integer> dfsStart = HashMapFactory.make();
         Iterator<Statement> reverseSearch = DFS.iterateDiscoverTime(sdg, entryPoints.get());
-        while (reverseSearch.hasNext()) {
+       
+        while (search.hasNext() && reverseSearch.hasNext()) {
             dfsStart.put(reverseSearch.next(), reverseDfsNumber++);
+            dfsFinish.put(search.next(), dfsNumber++);
         }
 
+        logger.info(() -> formatMessage("CallGraphPopulatingMethodLevel"));
         // Populate graph
         sdg.stream()
                 .filter(dfsFinish::containsKey)
                 .sorted(Comparator.comparingInt(dfsFinish::get))
                 .forEach(p -> sdg.getSuccNodes(p).forEachRemaining(s -> {
                     if (dfsFinish.containsKey(s)
+                    		&& dfsStart.get(p) != null && dfsStart.get(s) != null
                             && !((dfsStart.get(p) >= dfsStart.get(s))
                             && (dfsFinish.get(p) <= dfsFinish.get(s)))
                             && !p.getNode().getMethod().equals(s.getNode().getMethod())) {
@@ -112,7 +120,8 @@ public class SDGGraph2JSON {
                         }
                     }
                 }));
-
+        
+        logger.info(() -> formatMessage("CallGraphCalculatingWeightMethodLevel"));
         callGraph.getEntrypointNodes()
                 .forEach(p -> {
                     // Get call statements that may execute in a given method
@@ -143,7 +152,7 @@ public class SDGGraph2JSON {
     }
 
     public static void convertAndSave(SDG<? extends InstanceKey> sdg, CallGraph cg, InterproceduralCFG ipcfg_full, File outputFile) {
-        // Prune the Graph to keep only application classes.
+    	// Prune the Graph to keep only application classes.
         Graph<Statement> prunedGraph = GraphSlicer.prune(sdg,
                 statement -> (
                         statement.getNode()
@@ -155,13 +164,13 @@ public class SDGGraph2JSON {
                 )
         );
 
+
         CallGraph callGraph = sdg.getCallGraph();
 
         // A supplier to get entries
         Supplier<Iterator<Statement>> sdgEntryPointsSupplier =
-                () -> callGraph.getEntrypointNodes().stream().map(n -> (Statement)new MethodEntryStatement(n)).iterator();
-
-
+        		() -> callGraph.getEntrypointNodes().stream().map(n -> (Statement)new MethodEntryStatement(n)).iterator();
+                
         org.jgrapht.Graph<AbstractGraphNode, AbstractGraphEdge> sdg_graph = buildGraph(
                 sdgEntryPointsSupplier,
                 prunedGraph, callGraph,
