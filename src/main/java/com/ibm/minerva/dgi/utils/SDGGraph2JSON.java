@@ -83,8 +83,15 @@ public class SDGGraph2JSON {
         Iterator<Statement> reverseSearch = DFS.iterateDiscoverTime(sdg, entryPoints.get());
        
         while (search.hasNext() && reverseSearch.hasNext()) {
-            dfsStart.put(reverseSearch.next(), reverseDfsNumber++);
-            dfsFinish.put(search.next(), dfsNumber++);
+        	Statement s = search.next();
+        	if (s != null) {
+        		dfsFinish.put(s, dfsNumber++);	
+        	}
+
+        	Statement r = reverseSearch.next();
+        	if (r != null) {
+        		dfsFinish.put(r, reverseDfsNumber++);	
+        	}
         }
 
         logger.info(() -> formatMessage("CallGraphPopulatingMethodLevel"));
