@@ -184,12 +184,22 @@ public final class ClassProcessor {
             // Filter out local and anonymous classes.
             final int index = name.lastIndexOf('$');
             if (index >= 0) {
+            	String parentName = name.substring(0,index);
                 name = name.substring(index+1);
                 if (name.length() > 0) {
                     final char c = name.charAt(0);
                     if (c >= '0' && c <= '9') {
                         return false;
                     }
+                }
+                // Filter out inner classes inside interfaces
+                if (parentName.length() > 0) {
+                	for(String interf:this.getInterfaces()) {
+                		String interfaceName = interf.substring(interf.lastIndexOf(".")+1);
+                		if (parentName.equals(interfaceName)) {
+                			return false;	
+                		}
+                	}
                 }
             }
         }
