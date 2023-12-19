@@ -65,6 +65,10 @@ public final class TableBuilder implements ApplicationProcessor {
     private final Set<String> skippedClasses = new LinkedHashSet<>();
     private final Map<String,Set<String>> duplicateClassMap = new LinkedHashMap<>();
 
+    // TODO: temp solution to remove inner classes without parent (when parent is an interface)
+    private final Set<String> allInterfaces = new LinkedHashSet<>();
+    private final Set<String> allInnerClasses = new LinkedHashSet<>();
+
     private CallGraphBuilder callGraphBuilder;
     private Set<String> packages;
     private boolean isPackageIncludeList;
@@ -86,6 +90,19 @@ public final class TableBuilder implements ApplicationProcessor {
 
     public void process(ClassProcessor cp, byte[] bytes) {
         final String fqcn = cp.toFQCN();
+        final String simpleName = cp.getCtClass().getSimpleName();
+        
+        if (simpleName != null && simpleName.length() > 0) {
+        	final int index = simpleName.lastIndexOf('$');
+            if (index >= 0) {
+            	allInnerClasses.add(fqcn);
+            }
+        }
+        
+        if (cp.getCtClass().isInterface()) {
+        	allInterfaces.add(fqcn);
+        }
+
         if (isIncludedPackage(cp) && cp.isStandardNamedClass(allowAnyLegalClasses)) {
             if (!fqcns.contains(fqcn)) {
                 logger.info(() -> formatMessage("AnalyzingClass", cp.getCtClass().getName()));
@@ -147,6 +164,7 @@ public final class TableBuilder implements ApplicationProcessor {
     }
 
     public void write() throws IOException {
+        removeInnerClassesInsideInterfaces();
         resolveDuplicateClassMappings();
         if (tableDir.mkdirs()) {
             logger.info(() -> formatMessage("DirectoryCreated", tableDir));
@@ -620,5 +638,30 @@ public final class TableBuilder implements ApplicationProcessor {
                 });
             }
         }
+    }
+
+    // Removing inner classes which the parent is an interface. This is important because we do not
+    // give recommendations for interfaces, which result in inner classes without a parent in the table files.
+    private void removeInnerClassesInsideInterfaces() {
+    	for (String innerClass:allInnerClasses) {
+    		int index = innerClass.indexOf("$");
+    		if (index >= 0) {
+    			String parentFQCN = innerClass.substring(0,index-1);
+    			
+    			if (allInterfaces.contains(parentFQCN)) {
+    				int parentNameIndex = parentFQCN.lastIndexOf(".");
+        			String compoundName = innerClass.substring(parentNameIndex+1);
+        			compoundName = compoundName.replace(".$", "::");
+        			
+    				symTable.remove(compoundName);
+    				// refTable.remove(compoundName); // refTable is more complex because has different entries for the same class
+    				// but does not cause a fail in the process when the parent class of a inner class is not in the table 
+    				fqcns.remove(innerClass);
+    				
+    				logger.warning("The Class "+innerClass+" is defined inside an interface and will not be analyzed.");
+    			}
+    		}
+    	}
+    	
     }
 }
