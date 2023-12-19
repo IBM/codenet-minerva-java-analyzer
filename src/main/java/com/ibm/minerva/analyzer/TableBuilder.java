@@ -662,6 +662,8 @@ public final class TableBuilder implements ApplicationProcessor {
     			}
     		}
     	}
-    	
+    	// deallocate global variable memories that will not be used anymore
+    	allInnerClasses.clear();
+    	allInterfaces.clear();
     }
 }
