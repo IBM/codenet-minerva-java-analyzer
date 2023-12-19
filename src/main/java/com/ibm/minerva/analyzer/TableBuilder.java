@@ -644,7 +644,7 @@ public final class TableBuilder implements ApplicationProcessor {
     // give recommendations for interfaces, which result in inner classes without a parent in the table files.
     private void removeInnerClassesInsideInterfaces() {
     	for (String innerClass:allInnerClasses) {
-    		int index = innerClass.indexOf("$");
+    		int index = innerClass.lastIndexOf("$");
     		if (index >= 0) {
     			String parentFQCN = innerClass.substring(0,index-1);
     			
@@ -654,7 +654,7 @@ public final class TableBuilder implements ApplicationProcessor {
         			compoundName = compoundName.replace(".$", "::");
         			
     				symTable.remove(compoundName);
-    				// refTable.remove(compoundName); // refTable is more complex because has different entries for the same class
+    				// refTable.remove // refTable is more complex because has different entries for the same class
     				// but does not cause a fail in the process when the parent class of a inner class is not in the table 
     				fqcns.remove(innerClass);
     				
