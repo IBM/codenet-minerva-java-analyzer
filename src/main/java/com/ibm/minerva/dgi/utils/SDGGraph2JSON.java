@@ -76,22 +76,18 @@ public class SDGGraph2JSON {
         int dfsNumber = 0;
         Map<Statement,Integer> dfsFinish = HashMapFactory.make();
         Iterator<Statement> search = DFS.iterateFinishTime(sdg, entryPoints.get());
-        
+       
+        while (search.hasNext()) {
+            dfsFinish.put(search.next(), dfsNumber++);
+        }
+
         // This is a reverse DFS search (or entry time first search)
         int reverseDfsNumber = 0;
         Map<Statement,Integer> dfsStart = HashMapFactory.make();
         Iterator<Statement> reverseSearch = DFS.iterateDiscoverTime(sdg, entryPoints.get());
-       
-        while (search.hasNext() && reverseSearch.hasNext()) {
-        	Statement s = search.next();
-        	if (s != null) {
-        		dfsFinish.put(s, dfsNumber++);	
-        	}
 
-        	Statement r = reverseSearch.next();
-        	if (r != null) {
-        		dfsFinish.put(r, reverseDfsNumber++);	
-        	}
+        while (reverseSearch.hasNext()) {
+            dfsStart.put(reverseSearch.next(), reverseDfsNumber++);
         }
 
         logger.info(() -> formatMessage("CallGraphPopulatingMethodLevel"));
