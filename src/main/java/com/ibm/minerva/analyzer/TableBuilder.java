@@ -652,26 +652,30 @@ public final class TableBuilder implements ApplicationProcessor {
     // Removing inner classes which the parent is an interface. This is important because we do not
     // give recommendations for interfaces, which result in inner classes without a parent in the table files.
     private void removeInnerClassesInsideInterfaces() {
-    	for (String innerClass:allInnerClasses) {
-    		int index = innerClass.lastIndexOf("$");
-    		if (index >= 0) {
-    			String parentFQCN = innerClass.substring(0,index-1);
-    			
-    			if (allInterfaces.contains(parentFQCN)) {
-    				int parentNameIndex = parentFQCN.lastIndexOf(".");
-        			String compoundName = innerClass.substring(parentNameIndex+1);
-        			compoundName = compoundName.replace(".$", "::");
-        			
-    				symTable.remove(compoundName);
-    				// refTable.remove // refTable is more complex because has different entries for the same class
-    				// but does not cause a fail in the process when the parent class of a inner class is not in the table 
-    				fqcns.remove(innerClass);
-    				
-    				logger.warning("The Class "+innerClass+" is defined inside an interface and will not be analyzed.");
-    			}
-    		}
+        // if symTable is null there is nothing to check
+        if (symTable != null) {
+            for (String innerClass:allInnerClasses) {
+                int index = innerClass.lastIndexOf("$");
+                if (index >= 0) {
+                    String parentFQCN = innerClass.substring(0,index-1);
+                    
+                    if (allInterfaces.contains(parentFQCN)) {
+                        int parentNameIndex = parentFQCN.lastIndexOf(".");
+                        String compoundName = innerClass.substring(parentNameIndex+1);
+                        compoundName = compoundName.replace(".$", "::");
+                        
+                        if (symTable.has(compoundName)) {
+                            symTable.remove(compoundName);
+                            // refTable.remove // refTable is more complex because has different entries for the same class
+                            // but does not cause a fail in the process when the parent class of a inner class is not in the table
+                            fqcns.remove(innerClass);
+                            logger.warning("The Class "+innerClass+" is defined inside an interface and will not be analyzed.");
+                        }
+                    }
+                }
+            }
     	}
-    	// deallocate global variable memories that will not be used anymore
+        // deallocate global variable memories that will not be used anymore
     	allInnerClasses.clear();
     	allInterfaces.clear();
     }
