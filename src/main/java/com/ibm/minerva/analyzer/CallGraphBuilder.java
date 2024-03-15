@@ -50,13 +50,13 @@ import com.google.gson.JsonObject;
 import com.ibm.minerva.dgi.utils.SDGGraph2JSON;
 import com.ibm.wala.cast.ir.ssa.AstIRFactory;
 import com.ibm.wala.cast.java.ipa.callgraph.JavaSourceAnalysisScope;
-import com.ibm.wala.cast.java.ipa.modref.AstJavaModRef;
 import com.ibm.wala.cast.java.translator.jdt.ecj.ECJClassLoaderFactory;
 import com.ibm.wala.classLoader.CallSiteReference;
 import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.classLoader.IMethod;
 import com.ibm.wala.classLoader.Module;
 import com.ibm.wala.classLoader.ModuleEntry;
+import com.ibm.wala.classLoader.PhantomClass;
 import com.ibm.wala.core.util.strings.Atom;
 import com.ibm.wala.ipa.callgraph.AnalysisCacheImpl;
 import com.ibm.wala.ipa.callgraph.AnalysisOptions;
@@ -70,6 +70,7 @@ import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
 import com.ibm.wala.ipa.cfg.InterproceduralCFG;
 import com.ibm.wala.ipa.cha.ClassHierarchyFactory;
 import com.ibm.wala.ipa.cha.IClassHierarchy;
+import com.ibm.wala.ipa.modref.ModRef;
 import com.ibm.wala.ipa.slicer.SDG;
 import com.ibm.wala.ipa.slicer.Slicer;
 import com.ibm.wala.properties.WalaProperties;
@@ -227,10 +228,11 @@ public final class CallGraphBuilder {
             if (classes.size() > 0) {
                 // Create class hierarchy
                 logger.info(() -> formatMessage("CallGraphClassHierarchyBuild"));
-                IClassHierarchy cha = ClassHierarchyFactory.make(scope, new ECJClassLoaderFactory(scope.getExclusions()));
+                IClassHierarchy cha = ClassHierarchyFactory.makeWithPhantom(scope, new ECJClassLoaderFactory(scope.getExclusions()));
 
                 logger.info(() -> formatMessage("CallGraphEndpointCalculation"));
                 Collection<Entrypoint> entryPoints = getEntryPoints(cha);
+                
                 if (entryPoints.size() > 0) {
                     // Initialize analysis options
                     AnalysisOptions options = new AnalysisOptions();
@@ -249,20 +251,31 @@ public final class CallGraphBuilder {
                     
                     // Build System Dependency Graph (call graph with method information)
                     logger.info(() -> formatMessage("CallGraphBuildMethodLevel"));
-                    SDG<? extends InstanceKey> sdg = new SDG<>(
-                            callGraph,
-                            builder.getPointerAnalysis(),
-                            new AstJavaModRef<>(),
-                            Slicer.DataDependenceOptions.NO_HEAP_NO_EXCEPTIONS,
-                            Slicer.ControlDependenceOptions.NO_EXCEPTIONAL_EDGES);
+                    
+                    try {
+						SDG<? extends InstanceKey> sdg = new SDG<>(
+						        callGraph,
+						        builder.getPointerAnalysis(),
+						        new ModRef<>(),
+						        Slicer.DataDependenceOptions.NO_HEAP_NO_EXCEPTIONS,
+						        Slicer.ControlDependenceOptions.NO_EXCEPTIONAL_EDGES);						
 
-                    // Build IPCFG
-                    InterproceduralCFG ipcfg_full = new InterproceduralCFG(callGraph,
-                            n -> n.getMethod().getReference().getDeclaringClass().getClassLoader() == JavaSourceAnalysisScope.SOURCE
-                                    || n == callGraph.getFakeRootNode() || n == callGraph.getFakeWorldClinitNode());
-
-                    // Save System Dependency Graph as JSON (call graph with method information) 
-                    SDGGraph2JSON.convertAndSave(sdg, callGraph, ipcfg_full, sdgGraphFile);
+						// Build IPCFG
+						InterproceduralCFG ipcfg_full = new InterproceduralCFG(callGraph,
+						        n -> n.getMethod().getReference().getDeclaringClass().getClassLoader() == JavaSourceAnalysisScope.SOURCE
+						                || n == callGraph.getFakeRootNode() || n == callGraph.getFakeWorldClinitNode());
+						
+						// Save System Dependency Graph as JSON (call graph with method information) 
+						SDGGraph2JSON.convertAndSave(sdg, callGraph, ipcfg_full, sdgGraphFile);
+						
+					} catch (Throwable t) {
+						if (t instanceof IOException) {
+			                throw (IOException) t;
+			            }
+			            logger.severe(() -> formatMessage("CallGraphWriteError", sdgGraphFile, t.getMessage()));
+			            throw new IOException(t);
+					}
+                    
                     logger.info(() -> formatMessage("WritingFile", sdgGraphFile.getAbsolutePath()));
                     
                     return true;
@@ -479,7 +492,7 @@ public final class CallGraphBuilder {
     private Collection<Entrypoint> getEntryPoints(IClassHierarchy cha) {
         final Collection<Entrypoint> entrypoints = new ArrayList<>();
         cha.forEach(c -> {
-            if (isApplicationClass(c)) {
+            if (isApplicationClass(c) && !(c instanceof PhantomClass)) {
                 c.getDeclaredMethods().forEach(method -> {
                     entrypoints.add(new DefaultEntrypoint(method, cha));
                 });
