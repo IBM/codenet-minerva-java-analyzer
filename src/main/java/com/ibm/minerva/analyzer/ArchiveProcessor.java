@@ -50,6 +50,10 @@ public final class ArchiveProcessor {
     public ArchiveProcessor(ApplicationProcessor ap) {
         this.ap = ap;
     }
+    
+    public void processExtraLibs(File[] extraLibs) {
+    	ap.processExtraLibs(extraLibs);
+    }
 
     public void processBinaryFile(File thisBinaryFile) throws IOException {
         if (!thisBinaryFile.exists()) {

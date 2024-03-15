@@ -53,6 +53,7 @@ public final class TableBuilder implements ApplicationProcessor {
     private static final String REF_TABLE_FILE_NAME = "refTable.json";
     private static final String AGENT_CONFIG_FILE_NAME = "instrumenter-config.json";
     private static final String CALL_GRAPH_FILE_NAME = "callGraph.json";
+    private static final String CALL_GRAPH_METHODS_FILE_NAME = "callGraph-methods.json";
 
     private final File tableDir;
     private final TableBuilderConfiguration config;
@@ -85,6 +86,11 @@ public final class TableBuilder implements ApplicationProcessor {
         else {
             this.symTable = null;
             this.refTable = null;
+        }
+    }
+    public void processExtraLibs(File[] extraLibs) {
+    	if (callGraphBuilder != null) {
+            callGraphBuilder.addLibsToScope(extraLibs);
         }
     }
 
@@ -189,9 +195,12 @@ public final class TableBuilder implements ApplicationProcessor {
         }
         if (callGraphBuilder != null) {
             // Write callGraph.json.
-            if (!writeCallGraph(CALL_GRAPH_FILE_NAME)) {
-                // Write an empty JSON document if no call graph was generated.
+            if (!writeCallGraphs(CALL_GRAPH_FILE_NAME, CALL_GRAPH_METHODS_FILE_NAME)) {
+                // Write empties JSON documents if no call graph was generated.
                 try (Writer callGraphWriter = createWriter(CALL_GRAPH_FILE_NAME)) {
+                    gson.toJson(new JsonObject(), callGraphWriter);
+                }
+                try (Writer callGraphWriter = createWriter(CALL_GRAPH_METHODS_FILE_NAME)) {
                     gson.toJson(new JsonObject(), callGraphWriter);
                 }
             }
@@ -217,8 +226,8 @@ public final class TableBuilder implements ApplicationProcessor {
         return new OutputStreamWriter(os, "UTF-8");
     }
 
-    private boolean writeCallGraph(String file) throws IOException {
-        return callGraphBuilder.write(new File(tableDir, file));
+    private boolean writeCallGraphs(String file1, String file2) throws IOException {
+        return callGraphBuilder.write(new File(tableDir, file1), new File(tableDir, file2));
     }
 
     private String addToSymTable(ClassProcessor cp) {

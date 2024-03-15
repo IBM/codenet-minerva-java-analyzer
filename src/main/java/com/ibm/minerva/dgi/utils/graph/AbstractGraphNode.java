@@ -16,21 +16,18 @@
  *     IBM Corporation - initial implementation
  *******************************************************************************/
 
-package com.ibm.minerva.analyzer;
+package com.ibm.minerva.dgi.utils.graph;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.Set;
+import java.io.Serializable;
+import java.util.Map;
+import org.jgrapht.nio.Attribute;
 
-public interface ApplicationProcessor {
 
-    public void process(ClassProcessor cp, byte[] bytes);
-    public void processExtraLibs(File[] extraLibs);
-    public void setCallGraphBuilder(CallGraphBuilder cgb);
-    public void setPackageRestrictions(Set<String> packages, boolean isPackageIncludeList);
-    public void setAllowAnyLegalClasses(boolean allowAnyLegalClasses);
-    public void setAgentOutputStream(boolean useSystemOut);
-    public void write() throws IOException;
-    public void clean();
+public abstract class AbstractGraphNode implements Serializable {
 
+	private static final long serialVersionUID = -4458565959512522181L;
+
+	public abstract String getId();
+
+    public abstract Map<String, Attribute> getAttributes();
 }
